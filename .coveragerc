@@ -1,0 +1,12 @@
+[run]
+omit =
+    # Omit test and data files
+    test/*
+    **/data
+
+    # Omit extensions with extra dependencies
+    pyrolite/util/wfs.py
+    pyrolite/util/database.py
+
+    # Ignore _version.py
+    */_version.py

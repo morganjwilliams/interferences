@@ -1,0 +1,4 @@
+include versioneer.py
+include interferences/_version.py
+include LICENSE
+recursive-include interferences/data *
