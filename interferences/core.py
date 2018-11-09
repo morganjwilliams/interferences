@@ -1,9 +1,11 @@
-import itertools
+from itertools import groupby, product, combinations_with_replacement
 import numpy as np
 import pandas as pd
 import periodictable as pt
 import matplotlib.pyplot as plt
 from collections import defaultdict
+from copy import deepcopy
+from pyrolite.normalisation import ReferenceCompositions
 
 _MASS = defaultdict(dict)
 _ELEMENTS = defaultdict(dict)
@@ -19,10 +21,38 @@ def cleanup_isotope_list(isotopes):
 
 def build_molecule(components, charge=0):
     """Builds a pt.Formula from a list of atom or isotope components."""
-    molecule = ''
+
+    def zero():
+        return 0
+
+    atoms = defaultdict(zero)
     for iso in components:
-        molecule += '{}[{}]'.format(iso.element, iso.isotope)
+        if isinstance(iso, pt.formulas.Formula):
+            try:
+                iso = get_first_atom(iso)
+            except:
+                raise AssertionError
+        name = element_name(iso)
+        atoms[name] += 1
+
+    molecule = ''
+    for n, count in atoms.items():
+        if count == 1:
+            molecule += '{}'.format(n)
+        else:
+            molecule += '{}{}'.format(n, count)
     return pt.formula(molecule)
+
+
+def element_name(el):
+    name = ''
+    if hasattr(el, 'element'):
+        name += '{}'.format(el.element)
+        if hasattr(el, 'isotope'):
+            name += '[{}]'.format(el.isotope)
+    else:
+        name += '{}'.format(el.symbol)
+    return name
 
 
 def molecular_abundance(components):
@@ -34,7 +64,10 @@ def molecular_abundance(components):
 
 
 def get_first_atom(molecule):
-    return list(molecule.atoms.keys())[0]
+    if isinstance(molecule, pt.core.Element):
+        return molecule
+    else:
+        return list(molecule.atoms.keys())[0]
 
 
 def build_mz_ratios(formula, charges={1:1., 2:1.}):
@@ -44,9 +77,11 @@ def build_mz_ratios(formula, charges={1:1., 2:1.}):
     penalized.
     """
     mz_ratios = {}
+    if isinstance(formula, pt.core.Element):
+        formula = pt.formula(formula)
     atoms = formula.atoms
     if len(atoms.keys()) < 2:
-        el = list(formula.atoms.keys())[0]
+        el = get_first_atom(formula)
         isotopes = [el.add_isotope(i) for i in el.isotopes]
         molecules = cleanup_isotope_list(isotopes)
         abundances = [i.abundance for i in molecules]
@@ -58,7 +93,7 @@ def build_mz_ratios(formula, charges={1:1., 2:1.}):
         components = [[el.add_isotope(i) for i in el.isotopes]
                       for el in components]
         components = [cleanup_isotope_list(_i) for _i in components]
-        poss_mol_parts = list(itertools.product(*components))
+        poss_mol_parts = list(product(*components))
         molecules = [build_molecule(parts) for parts in poss_mol_parts]
         abundances = [molecular_abundance(parts) for parts in poss_mol_parts]
 
@@ -67,8 +102,10 @@ def build_mz_ratios(formula, charges={1:1., 2:1.}):
     for mol, abund, mass in zip(molecules, abundances, masses):
         for z in charges.keys():
             m_on_z = mass/z
-            mz_ratios[m_on_z] = (mol, abund * charges[z])
-    return mz_ratios.copy()
+            zmol = pt.formula(deepcopy(mol))
+            #setattr(list(zmol.atoms.keys())[-1], 'charge', z)
+            mz_ratios[m_on_z] = (zmol, abund * charges[z])
+    return mz_ratios
 
 
 def sum_of_interferences(ion, composition:pd.Series=None):
@@ -122,67 +159,131 @@ def abundance_estimiate(composition, formula):
         print(formula, type(formula))
         raise AssertionError
 
+def get_molecular_combinations(elements, max_atoms=3):
+    """
+    Combine a set of elements into molecular combinations up to a maximum
+    number of atoms per molecule. Successively adds smaller molecules until
+    down to single atoms.
+    """
+    poss_mol_parts = []
+    n = max_atoms
+    while n:
+        components = combinations_with_replacement(elements,n)
+        poss_mol_parts += list(components)
+        n -= 1
+    molecules = [build_molecule(parts) for parts in poss_mol_parts]
+
+    return molecules
+
+
+def get_reference_abundance(molecule,
+                            norm='Chondrite_PON',
+                            unknown_val=1000):
+    norm = ReferenceCompositions()[norm] # in ppm
+    abund = 10**6 # 100%
+    for iso in molecule.atoms.keys():
+        el = element_name(iso)
+        abund *= getattr(norm, el)
+    if not np.isfinite(abund):
+        abund = unknown_val # unknown abundance%
+    return abund
 
 
 
-# populate dict by mass - elements then molecular ions
-_els = [i for i in pt.elements if not i.symbol == 'n']
-for el1 in _els:
 
-    for z1 in el1.isotopes:
-        iso1 = el1.add_isotope(z1)
-        abund1 = iso1.abundance
-        if abund1:
-            _MASS[z1].update({iso1: abund1})
-
-            for el2 in _els:
-                for z2 in el2.isotopes:
-                    iso2 = el2.add_isotope(z2)
-                    abund2 = iso2.abundance
-                    if abund2:
-                        molecule = '{}[{}]{}[{}]'.format(iso1.element,
-                                                         iso1.isotope,
-                                                         iso2.element,
-                                                         iso2.isotope)
-                        molecule = pt.formula(molecule)
-                        molecule_abund = abund1*abund2
-                        _MASS[z1+z2].update({repr(molecule): molecule_abund})
-
-for el in pt.elements:
-    for z in el.isotopes:
-        iso = el.add_isotope(z)
-        abund = iso.abundance
-
-        if abund:
-            # could divide by isotopic composition here /abund
-            __interferences = {k: v for (k,v) in _MASS[z].items()
-                              if k!=el}
-            if __interferences:
-                _ELEMENTS[el][z] = __interferences
+elements = ['Fe', 'Ti', 'Ni', 'S',  'Co', 'Au', 'Pd', 'Pt', 'Ir', 'Rh', 'Ru',
+            'As', 'Se', 'Zn', 'Cu', 'Mn',
+            'O', 'He', 'H', 'Ar', 'N']
 
 
+els = sorted([pt.formula(el) for el in elements],
+             key=lambda x: x.mass,
+             reverse=True)
 
+
+molecules = get_molecular_combinations(els, max_atoms=2)
+gs = set(map(get_first_atom, molecules))
+_mols = [list(filter(lambda x: get_first_atom(x)==g, molecules)) for g in gs]
+
+for g in _mols:
+    # estimate some natural relative abundances for the molecules
+    rel_abunds =  np.array([get_reference_abundance(mol)
+                            for mol in g]).astype(np.float)
+    rel_abunds /= np.sum(rel_abunds)
+    # get the m/z ratios and relative isotopic abundances for the molecules
+    mzdicts = [build_mz_ratios(mol, charges={1:1., 2:0.05}) for mol in g]
+    fig, ax = plt.subplots(1, figsize=(10,5))
+
+    _mzs = np.array([mz for mzlist in mzdicts for mz in list(mzlist.keys())])
+    min, max = np.round(_mzs.min(),0)-0.5, np.round(_mzs.max(),0)+1.5
+    bins = np.arange(min, max, 1)
+    #ax.set_yscale('log')
+    #ax.set_ylim((np.float(10**10) ,np.float(10**20)))
+    series = 0
+    bottom = np.zeros(bins.size-1)
+    for mol, mz, abund in zip(g, mzdicts, rel_abunds):
+        mzs = np.array(list(mz.keys()))
+        if np.logical_and(mzs>=np.min(bins), mzs<=np.max(bins)).any():
+            n, bins, patches = ax.hist(list(mz.keys()),
+                        weights=[mz[m][1]*abund for m in list(mz.keys())],
+                        label=str(mol),
+                        bins=bins,
+                        bottom=bottom,
+                        alpha=0.5,)
+
+            bottom += n
+            series += 1
+
+    ax.set_ylabel('Est. Relative Intensity')
+    ax.set_xlabel('m/z')
+    ax.legend(frameon=False, facecolor=None,
+              bbox_to_anchor=(1,1),
+              bbox_transform=ax.transAxes, #ncol=series//17
+              )
+
+build_mz_ratios(pt.formula('CoAr'), charges={1:1., 2:0.05})
+build_mz_ratios(pt.formula('Ru'), charges={1:1., 2:0.05})
 
 if __name__ == '__main__':
 
-    from pyrolite.util.pd import test_serf
+    from pyrolite.util.pd import test_ser
 
-    from pyrolite.normalisation import ReferenceCompositions
-    norm = ReferenceCompositions()['Chondrite_PON']
-    isos = [pt.formula('NiS'),
-            pt.formula('Pt'), pt.formula('Au'),
-            pt.formula('Ru'), pt.formula('Pd'),
-            pt.formula('Rh'), pt.formula('Ir')]
-    rel_abunds =  [getattr(norm, str(get_first_atom(iso))) for iso in isos]
-    mzdicts = [build_mz_ratios(iso, charges={1:1., 2:1.}) for iso in isos]
-    fig, ax = plt.subplots(1)
-    ax.set_yscale('log')
-    for iso, mz, abund in zip(isos, mzdicts, rel_abunds):
-        c = ax.hist(list(mz.keys()),
-                    weights=[mz[m][1]*abund for m in list(mz.keys())],
-                    bins=100,
-                    label=str(iso))
-    ax.legend(frameon=False, facecolor=None)
+    # populate dict by mass - elements then molecular ions
+    _els = [i for i in pt.elements if not i.symbol == 'n']
+    for el1 in _els:
+
+        for z1 in el1.isotopes:
+            iso1 = el1.add_isotope(z1)
+            abund1 = iso1.abundance
+            if abund1:
+                _MASS[z1].update({iso1: abund1})
+
+                for el2 in _els:
+                    for z2 in el2.isotopes:
+                        iso2 = el2.add_isotope(z2)
+                        abund2 = iso2.abundance
+                        if abund2:
+                            molecule = '{}[{}]{}[{}]'.format(iso1.element,
+                                                             iso1.isotope,
+                                                             iso2.element,
+                                                             iso2.isotope)
+                            molecule = pt.formula(molecule)
+                            molecule_abund = abund1*abund2
+                            _MASS[z1+z2].update({repr(molecule): molecule_abund})
+
+
+    for el in pt.elements:
+        for z in el.isotopes:
+            iso = el.add_isotope(z)
+            abund = iso.abundance
+
+            if abund:
+                # could divide by isotopic composition here /abund
+                __interferences = {k: v for (k,v) in _MASS[z].items()
+                                  if k!=el}
+                if __interferences:
+                    _ELEMENTS[el][z] = __interferences
+
     # populate dict by element
 
     c = test_ser(index=['Si', 'Ca', 'Mg', 'Ar'])
