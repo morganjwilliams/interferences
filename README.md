@@ -1,5 +1,8 @@
 # interferences
 
+[![interferences Documentation](https://readthedocs.org/projects/interferences/badge/?version=develop)](https://interferences.readthedocs.io/)
+[![License: CSIRO Modified BSD/MIT License](https://img.shields.io/badge/License-CSIRO_BSD/MIT_License-blue.svg?style=flat)](https://github.com/morganjwilliams/interferences/blob/master/LICENSE)
+
 Tools for inorganic mass spectra and interference patterns.
 
 ## What does it do?
@@ -54,3 +57,13 @@ pip install git+git://github.com/morganjwilliams/interferences.git@develop#egg=i
 * Simulated spectra given specified resolution (likely with log-scales by default)
 
 ## Development & Build Status
+
+[![Formatted with Black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/python/black)
+[![Code Quality](https://api.codacy.com/project/badge/Grade/fd9912a3faae43bf84a47e3da685d84c)](https://www.codacy.com/manual/morganjwilliams/interferences?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=morganjwilliams/interferences&amp;utm_campaign=Badge_Grade)
+
+|                                                                                  **master**                                                                                  |                                                                                  **develop**                                                                                   |
+|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|:------------------------------------------------------------------------------------------------------------------------------------------------------------------------------:|
+|                     [![Build Status](https://travis-ci.org/morganjwilliams/interferences.svg?branch=master)](https://travis-ci.org/morganjwilliams/interferences)                      |                      [![Build Status](https://travis-ci.org/morganjwilliams/interferences.svg?branch=develop)](https://travis-ci.org/morganjwilliams/interferences)                      |
+| [![Coverage Status](https://coveralls.io/repos/github/morganjwilliams/interferences/badge.svg?branch=master)](https://coveralls.io/github/morganjwilliams/interferences?branch=master) | [![Coverage Status](https://coveralls.io/repos/github/morganjwilliams/interferences/badge.svg?branch=develop)](https://coveralls.io/github/morganjwilliams/interferences?branch=develop) |
+
+**Maintainer**: Morgan Williams (morgan.williams _at_ csiro.au)
