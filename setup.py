@@ -39,7 +39,7 @@ setup(
         "periodictable",
         "pyrolite"
     ],
-    extras_require={"dev": docs_require + tests_require,},
+    extras_require={"dev": docs_require + tests_require, "docs": docs_require},
     tests_require=tests_require,
     test_suite="test",
     package_data={"interferences": ["data/*"]},
