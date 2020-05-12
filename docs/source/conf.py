@@ -135,7 +135,7 @@ html_sidebars = {
         "searchbox.html",
     ]
 }
-html_logo = "./_static/icon_small.png"
+# html_logo = "./_static/icon_small.png"
 html_context = {
     "display_github": True,  # Integrate GitHub
     "github_user": "morganjwilliams",  # Username
