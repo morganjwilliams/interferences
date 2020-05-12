@@ -6,7 +6,7 @@ pip install git+git://github.com/morganjwilliams/interferences.git@develop#egg=i
 ```
 
 Upgrading interferences
---------------------
+------------------------
 
 ```bash
 pip install --upgrade git+git://github.com/morganjwilliams/interferences.git@develop#egg=interferences
