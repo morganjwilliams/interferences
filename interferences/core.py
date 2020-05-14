@@ -12,7 +12,6 @@ _MASS = defaultdict(dict)
 _ELEMENTS = defaultdict(dict)
 
 
-
 def constrained_abundance_estimate(composition, formula):
     """
     Get an abundance estimate for a specific molecule constrained by a
@@ -64,8 +63,6 @@ def get_reference_abundance(molecule, reference="Chondrite_PON", unknown_val=100
     if not np.isfinite(abund):
         abund = unknown_val  # unknown abundance%
     return abund
-
-
 
 
 def sum_of_interferences(ion, composition: pd.Series = None):
