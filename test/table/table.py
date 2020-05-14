@@ -12,6 +12,7 @@ from interferences.table.molecules import _get_isotope
 from interferences.util.sorting import get_relative_electronegativity
 from interferences.util.meta import interferences_datafolder
 
+
 class TestTable(unittest.TestCase):
     def setUp(self):
         self.dirpath = interferences_datafolder(subfolder="table")
@@ -49,10 +50,11 @@ class TestTable(unittest.TestCase):
     def test_isotope_string_components(self):
         isotopes = [repr(pt.O.add_isotope(18)), repr(pt.H.add_isotope(1))]
         df = build_table(isotopes)
+        fresh_build = isinstance(df["components"].values[0], list)  # otherwise string
         for row in df.index:
-            components = [
-                el.strip() for el in df.loc[row, "components"][1:-1].split(",")
-            ]
+            components = df.loc[row, "components"]
+            if not fresh_build:
+                components = [el.strip() for el in components[1:-1].split(",")]
             set_final = set(components)
             set_start = set(isotopes)
             self.assertTrue(set_final.issubset(set_start))
@@ -60,10 +62,11 @@ class TestTable(unittest.TestCase):
     def test_isotope_object_components(self):
         isotopes = [pt.O.add_isotope(18), pt.H.add_isotope(1)]
         df = build_table(isotopes)
+        fresh_build = isinstance(df["components"].values[0], list)  # otherwise string
         for row in df.index:
-            components = [
-                el.strip() for el in df.loc[row, "components"][1:-1].split(",")
-            ]
+            components = df.loc[row, "components"]
+            if not fresh_build:
+                components = [el.strip() for el in components[1:-1].split(",")]
             set_final = set(components)
             set_start = set([repr(i) for i in isotopes])
             self.assertTrue(set_final.issubset(set_start))
