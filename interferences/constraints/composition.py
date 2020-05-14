@@ -1,15 +1,13 @@
-from itertools import groupby, product, combinations_with_replacement
-import numpy as np
+"""
+Placing constraints on mass spectra using compositional information.
+"""
 import pandas as pd
 import periodictable as pt
-from periodictable.core import isisotope, iselement, isatom
-import matplotlib.pyplot as plt
-from collections import defaultdict
-from copy import deepcopy
 from pyrolite.geochem.norm import get_reference_composition
+import logging
 
-_MASS = defaultdict(dict)
-_ELEMENTS = defaultdict(dict)
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 
 def constrained_abundance_estimate(composition, formula):
@@ -39,7 +37,6 @@ def constrained_abundance_estimate(composition, formula):
     elif isinstance(formula, str):
         return constrained_abundance_estimate(composition, pt.formula(compound=formula))
     else:
-
         print(formula, type(formula))
         raise AssertionError
 
@@ -63,42 +60,3 @@ def get_reference_abundance(molecule, reference="Chondrite_PON", unknown_val=100
     if not np.isfinite(abund):
         abund = unknown_val  # unknown abundance%
     return abund
-
-
-def sum_of_interferences(ion, composition: pd.Series = None):
-    """
-    Calculate the sum of all interferences for a given isotope.
-    """
-    result = 0.0
-
-    if composition is None:
-        if ion.isotope in _ELEMENTS[ion.element]:
-            _interf = [v for (k, v) in _ELEMENTS[ion.element][ion.isotope].items()]
-            if _interf:
-                result += np.array(_interf).sum()
-    else:
-        assert isinstance(composition, pd.Series)
-        int_list = _ELEMENTS[ion.element]
-        if ion.isotope in int_list:
-            table = _ELEMENTS[ion.element][ion.isotope].items()
-            _interf = [
-                v * constrained_abundance_estimate(composition, k) for (k, v) in table
-            ]
-            if _interf:
-                result += np.array(_interf).sum() / composition[str(ion.element)]
-
-    return result
-
-
-def minimum_interference_isotope(element, composition=None):
-    """
-    Find the minimum total interference isotope for a given element.
-    """
-
-    isos = list(_ELEMENTS[element].keys())
-    _interfs = [
-        sum_of_interferences(element.add_isotope(iso), composition=composition)
-        for iso in isos
-    ]
-
-    return isos[_interfs.index(np.min(_interfs))]
