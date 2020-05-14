@@ -5,6 +5,9 @@ from itertools import product, combinations_with_replacement
 from .molecules import molecule_from_components, get_molecular_formula
 from ..util.meta import interferences_datafolder
 from ..util.sorting import get_relative_electronegativity
+import logging
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 
 def isotope_abundance_threshold(isotopes, threshold=10e-8):
