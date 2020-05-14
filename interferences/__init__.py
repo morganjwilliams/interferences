@@ -7,5 +7,3 @@ del get_versions
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
 logging.captureWarnings(True)
-
-from .core import *
