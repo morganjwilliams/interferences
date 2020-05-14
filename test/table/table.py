@@ -12,7 +12,6 @@ from interferences.table.molecules import _get_isotope
 from interferences.util.sorting import get_relative_electronegativity
 from interferences.util.meta import interferences_datafolder
 
-
 class TestTable(unittest.TestCase):
     def setUp(self):
         self.dirpath = interferences_datafolder(subfolder="table")

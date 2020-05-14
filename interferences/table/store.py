@@ -9,7 +9,64 @@ _COMPLEVEL = 4
 _COMPLIB = "lzo"
 _ITEMSIZES = {"elements": 30, "parts": 40, "components": 40, "molecule": 30}
 
-# consider using heirarchical dataframes instead of multiple tables?
+
+def get_table(store, key):
+    """
+    Load a specific table from the HDF store.
+
+    Parameters
+    ----------
+    store : :class:`pandas.HDFStore`
+        Store to access.
+    key : :class:`str`
+        Key to query.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+    """
+    return store.get("/" + key)
+
+
+def get_element_group(
+    store, identifier, key="table",
+):
+    name = "/" + key
+    if name in store.keys():
+        df = store.get(name)
+        if identifier in df.index.get_level_values("elements"):
+            return df.loc[identifier]
+        else:
+            raise KeyError("Identifier not in index.")
+    raise KeyError("Key not in table.")
+
+
+def load_groups_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs):
+    """
+    Load the interferences HDF store.
+
+    Parameters
+    ----------
+    path : :class:`str` | :class:`pathlib.Path`
+        Path to the store.
+    complevel : :class:`int`
+        Compression level option for the HDF store. Uncompressed tables can easily
+        reach a few hundred MB - this isn't an issue on a local disk, but can be
+        limiting for web transfer.
+    complib : :class:`str`
+        Which compression library to use.
+
+    Returns
+    -------
+    :class:`pandas.HDFStore`
+    """
+    path = path or interferences_datafolder(subfolder="table") / "groups.h5"
+    if not path.exists():
+        reset_group_tables(path=path, remove=False)  # init table
+    store = pd.HDFStore(path, complevel=complevel, complib=complib, **kwargs)
+    return store
+
+
 def dump_element_group(
     df,
     identifier,
@@ -72,63 +129,6 @@ def dump_element_group(
     )
 
 
-def load_groups_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs):
-    """
-    Load the interferences HDF store.
-
-    Parameters
-    ----------
-    path : :class:`str` | :class:`pathlib.Path`
-        Path to the store.
-    complevel : :class:`int`
-        Compression level option for the HDF store. Uncompressed tables can easily
-        reach a few hundred MB - this isn't an issue on a local disk, but can be
-        limiting for web transfer.
-    complib : :class:`str`
-        Which compression library to use.
-
-    Returns
-    -------
-    :class:`pandas.HDFStore`
-    """
-    path = path or interferences_datafolder(subfolder="table") / "groups.h5"
-    if not path.exists():
-        reset_group_tables(path=path, remove=False)  # init table
-    store = pd.HDFStore(path, complevel=complevel, complib=complib, **kwargs)
-    return store
-
-
-def get_table(store, key):
-    """
-    Load a specific table from the HDF store.
-
-    Parameters
-    ----------
-    store : :class:`pandas.HDFStore`
-        Store to access.
-    key : :class:`str`
-        Key to query.
-
-    Returns
-    -------
-    :class:`pandas.DataFrame`
-    """
-    return store.get("/" + key)
-
-
-def get_element_group(
-    store, identifier, key="table",
-):
-    name = "/" + key
-    if name in store.keys():
-        df = store.get(name)
-        if identifier in df.index.get_level_values("elements"):
-            return df.loc[identifier]
-        else:
-            raise KeyError("Identifier not in index.")
-    raise KeyError("Key not in table.")
-
-
 def reset_group_tables(path=None, remove=True, format="table", **kwargs):
     """
     Reset or remove a HDF store.
@@ -143,6 +143,8 @@ def reset_group_tables(path=None, remove=True, format="table", **kwargs):
         Format to set for the new tables.
     """
     path = path or interferences_datafolder(subfolder="table") / "groups.h5"
+    if not path.parent.exists():
+        path.parent.mkdir(parents=True)  # ensure directory exists
     if remove:
         os.remove(path)  # remove the file
     else:  # keep table keys, set them to empty frames
