@@ -32,7 +32,7 @@ def get_periodic_frame():
     table.loc[3, np.arange(13, 19)] = _fltr_by_n(13, 18)
     table.loc[4, np.arange(1, 19)] = _fltr_by_n(19, 36)
     table.loc[5, np.arange(1, 19)] = _fltr_by_n(37, 54)
-    table.loc[6, [1, 2]] = [pt.Ce, pt.Ba]
+    table.loc[6, [1, 2]] = [pt.Cs, pt.Ba]
     table.loc[6, 3] = _fltr_by_n(57, 71)
     table.loc[6, np.arange(4, 19)] = _fltr_by_n(72, 86)
     table.loc[7, [1, 2]] = [pt.Fr, pt.Ra]

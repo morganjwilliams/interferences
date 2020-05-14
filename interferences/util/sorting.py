@@ -31,7 +31,7 @@ def _build_relative_electronegativities(reverse=True):
     ordering += [pt.H]
     for grp in np.arange(4, 16)[::-1]:
         ordering += pt_df[grp].to_list()
-    ordering += pt_df.loc[3, :5].to_list()
+    ordering += pt_df.loc[:5, 3].to_list()  # Sc, Y
     ordering += pt_df.loc[6, 3]  # lanthanoids
     ordering += pt_df.loc[7, 3]  # actinoids
     ordering += pt_df[2].to_list()
@@ -40,7 +40,7 @@ def _build_relative_electronegativities(reverse=True):
     ordering = [el for el in ordering if not pd.isnull(el)]
     if reverse:
         ordering = ordering[::-1]
-    return {el: ix for ix, el in enumerate(ordering)}
+    return {el.number: ix for ix, el in enumerate(ordering)}
 
 
 def get_first_atom(molecule):
@@ -76,12 +76,17 @@ def get_relative_electronegativity(element, reverse=True):
     Returns
     -------
     :class:`int` | :class:`list`
+
+    Note
+    -----
+    Electronegativity check uses numbers as these are provided by both
+    Element and Isotope objects.
     """
     en = _build_relative_electronegativities(reverse=reverse)
     if isinstance(element, list):
-        return [en[get_first_atom(pt.formula(e)).element] for e in element]
+        return [en[get_first_atom(pt.formula(e)).number] for e in element]
     else:
-        return en[get_first_atom(pt.formula(element)).element]
+        return en[get_first_atom(pt.formula(element)).number]
 
 
 get_relative_electronegativity("Ca[40]")
