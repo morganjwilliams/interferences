@@ -50,24 +50,22 @@ class TestTable(unittest.TestCase):
     def test_isotope_string_components(self):
         isotopes = [repr(pt.O.add_isotope(18)), repr(pt.H.add_isotope(1))]
         df = build_table(isotopes)
-        fresh_build = isinstance(df["components"].values[0], list)  # otherwise string
         for row in df.index:
             components = df.loc[row, "components"]
-            if not fresh_build:
-                components = [el.strip() for el in components[1:-1].split(",")]
-            set_final = set(components)
+            components = [el.strip() for el in components[1:-1].split(",")]
+            set_final = set([i for i in components])
             set_start = set(isotopes)
+            print(set_start, set_final)
             self.assertTrue(set_final.issubset(set_start))
 
     def test_isotope_object_components(self):
+        # this fails on new builds
         isotopes = [pt.O.add_isotope(18), pt.H.add_isotope(1)]
         df = build_table(isotopes)
-        fresh_build = isinstance(df["components"].values[0], list)  # otherwise string
         for row in df.index:
             components = df.loc[row, "components"]
-            if not fresh_build:
-                components = [el.strip() for el in components[1:-1].split(",")]
-            set_final = set(components)
+            components = [el.strip() for el in components[1:-1].split(",")]
+            set_final = set([i for i in components])
             set_start = set([repr(i) for i in isotopes])
             self.assertTrue(set_final.issubset(set_start))
 

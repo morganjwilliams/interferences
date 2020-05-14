@@ -120,6 +120,7 @@ def component_subtable(components, charges=[1, 2], threshold=10e-8):
         ]
     )
     # take these elemental combinations and exapand to a list of isotopes ##########
+    print([type(c) for c in components])
     isotope_components = [
         [el.add_isotope(i) for i in el.isotopes]
         if not isinstance(el, pt.core.Isotope)
@@ -130,6 +131,7 @@ def component_subtable(components, charges=[1, 2], threshold=10e-8):
         isotope_abundance_threshold(lst, threshold=threshold)
         for lst in isotope_components
     ]
+    print(isotope_components)
     # get isotopic combinations ####################################################
     # Counters used for unorderd comparison of lists,
     # otherwise could use list(product(*(isotope_components)))
@@ -254,4 +256,5 @@ def build_table(
     # additional columns ###############################################################
     if add_labels:  # this step is string-operation intensive, and hence very slow
         table["label"] = get_molecule_labels(table)
-    return table
+    # for consistency with prevsiouly serialized data:
+    return table.astype({"molecule": str, "components": str})
