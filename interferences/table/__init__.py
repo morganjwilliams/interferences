@@ -15,7 +15,7 @@ from .store import (
     get_element_group,
     consoliate_groups,
 )
-from ..util.sorting import get_relative_electronegativity
+from ..util.sorting import get_relative_electronegativity, get_first_atom
 import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -231,7 +231,7 @@ def build_table(
     for components in molecular_components:
         # convert elements to pt.core.Element
         components = [
-            getattr(pt, el) if isinstance(el, str) else el for el in components
+            get_first_atom(el) if isinstance(el, str) else el for el in components
         ]
         identifier = "-".join([repr(c) for c in components])
         try:  # check if these are in the database

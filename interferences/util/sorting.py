@@ -60,7 +60,7 @@ def get_first_atom(molecule):
     if isinstance(molecule, pt.core.Element):
         return molecule
     else:
-        return list(molecule.atoms.keys())[0]
+        return list(pt.formula(molecule).atoms.keys())[0]
 
 
 def get_relative_electronegativity(element, reverse=True):

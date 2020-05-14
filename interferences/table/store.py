@@ -7,7 +7,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 
 _COMPLEVEL = 4
 _COMPLIB = "lzo"
-
+_ITEMSIZES = {"elements": 30, "parts": 40, "components": 40, "molecule": 30}
 
 # consider using heirarchical dataframes instead of multiple tables?
 def dump_element_group(
@@ -55,7 +55,11 @@ def dump_element_group(
     # append to the existing dataframe
     if not isinstance(path, pd.HDFStore):
         store = load_groups_store(
-            path=path, complevel=complevel, complib=complib, **kwargs
+            path=path,
+            complevel=complevel,
+            complib=complib,
+            min_itemsize=_ITEMSIZES,
+            **kwargs
         )
     output.astype({"molecule": "str", "components": "str"}).to_hdf(
         store,
@@ -64,7 +68,7 @@ def dump_element_group(
         append=True,
         format="table",
         data_columns=data_columns,
-        min_itemsize={"elements": 15, "parts": 25},
+        min_itemsize=_ITEMSIZES,
     )
 
 
@@ -88,7 +92,9 @@ def load_groups_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwarg
     :class:`pandas.HDFStore`
     """
     path = path or interferences_datafolder(subfolder="table") / "groups.h5"
-    store = pd.HDFStore(path, complevel=complevel, complib=complib)
+    if not path.exists():
+        reset_group_tables(path=path, remove=False)  # init table
+    store = pd.HDFStore(path, complevel=complevel, complib=complib, **kwargs)
     return store
 
 
@@ -140,26 +146,25 @@ def reset_group_tables(path=None, remove=True, format="table", **kwargs):
     if remove:
         os.remove(path)  # remove the file
     else:  # keep table keys, set them to empty frames
-        with load_groups_store(path=path) as store:
-            df = pd.DataFrame(
-                index=pd.MultiIndex.from_product([[], []], names=["elements", "parts"]),
-                columns=[
-                    "m/z",
-                    "molecule",
-                    "components",
-                    "mass",
-                    "charge",
-                    "iso_abund_product",
-                ],
-            )
-            df.to_hdf(
-                store,
-                key="table",
-                format=format,
-                mode="w",
-                min_itemsize={"elements": 15, "parts": 25},
-                **kwargs
-            )
+        df = pd.DataFrame(
+            index=pd.MultiIndex.from_product([[], []], names=["elements", "parts"]),
+            columns=[
+                "m/z",
+                "molecule",
+                "components",
+                "mass",
+                "charge",
+                "iso_abund_product",
+            ],
+        )
+        df.to_hdf(
+            path,
+            key="table",
+            format=format,
+            mode="w",
+            min_itemsize=_ITEMSIZES,
+            **kwargs
+        )
 
 
 def consoliate_groups(
@@ -206,5 +211,6 @@ def consoliate_groups(
         data_columns=data_columns,
         complevel=complevel,
         complib=complib,
+        min_itemsize=_ITEMSIZES,
     )
     return df
