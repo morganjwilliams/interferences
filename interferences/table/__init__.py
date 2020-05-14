@@ -9,7 +9,12 @@ from .molecules import (
     repr_formula,
     _get_isotope,
 )
-from .store import load_store, dump_table, get_table
+from .store import (
+    load_groups_store,
+    dump_element_group,
+    get_element_group,
+    consoliate_groups,
+)
 from ..util.sorting import get_relative_electronegativity
 import logging
 
@@ -221,7 +226,8 @@ def build_table(
     molecular_components = get_elemental_combinations(
         elements, max_atoms=max_atoms
     )  # this can't be split easily
-    store = load_store()
+    groupstore = load_groups_store()
+    updated_groups = False
     for components in molecular_components:
         # convert elements to pt.core.Element
         components = [
@@ -229,18 +235,23 @@ def build_table(
         ]
         identifier = "-".join([repr(c) for c in components])
         try:  # check if these are in the database
-            df = get_table(store, identifier)
+            df = get_element_group(groupstore, identifier)
         except KeyError:  # if not, build it
             df = component_subtable(components, charges=charges)
-            dump_table(df, identifier)  # append to the HDF store for later use
+            dump_element_group(
+                df, identifier, path=groupstore
+            )  # append to the HDF store for later use
+            updated_groups = True
 
         table = pd.concat([table, df], axis=0, ignore_index=False)
-    store.close()
+    groupstore.close()
+    if updated_groups:
+        consoliate_groups()  # update the interferences.h5 file with new data
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################
     table.sort_values(sortby, axis="index", inplace=True)
     # additional columns ###############################################################
     if add_labels:  # this step is string-operation intensive, and hence very slow
-        table["label"] = get_molecule_labels(df)
+        table["label"] = get_molecule_labels(table)
     return table

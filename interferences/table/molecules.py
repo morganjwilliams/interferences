@@ -1,7 +1,8 @@
-from collections import defaultdict
+import pandas as pd
 import periodictable as pt
 from pyrolite.mineral.transform import merge_formulae
 from ..util.sorting import get_relative_electronegativity
+from ..util.meta import interferences_datafolder
 
 
 def _get_isotope(element):
@@ -49,7 +50,7 @@ def get_molecule_labels(df):
     labels = pd.Series(index=df.index)
     try:
         _label_index = pd.read_csv(label_src, index_col=0)
-        known_labels = _label_index.reindex(index=table.index).dropna().index
+        known_labels = _label_index.reindex(index=df.index).dropna().index
         unknown_labels = df.index.difference(known_labels)
 
         if known_labels.size:
@@ -61,12 +62,15 @@ def get_molecule_labels(df):
     # fill in the gaps
     labels[unknown_labels] = df.loc[unknown_labels, "molecule"].apply(
         get_formatted_formula, sorted=True
-    ) + df["charge"].apply(lambda c: r"$\mathrm{^{" + "+" * c + "}}$")
+    )
+    labels[unknown_labels] += df.loc[unknown_labels, "charge"].apply(
+        lambda c: r"$\mathrm{^{" + "+" * c + "}}$"
+    )
     # write out new index values to the datafile
     if unknown_labels.size:
-        pd.concat(
-            [_label_index, df.loc[unknown_labels, ["label"]]]
-        ).sort_index().to_csv(label_src, index=True)
+        pd.concat([_label_index, labels[unknown_labels]]).sort_index().to_csv(
+            label_src, index=True
+        )
     return labels
 
 
@@ -86,6 +90,7 @@ def get_formatted_formula(molecule, sorted=False):
     -------
     :class:`str`
     """
+    molecule = pt.formula(molecule)
     components = list(molecule.atoms.keys())
     if not sorted:
         components = sorted(
