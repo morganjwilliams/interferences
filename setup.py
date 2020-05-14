@@ -35,6 +35,7 @@ setup(
         "numpy",
         "scipy",
         "pandas",
+        "tables",
         "matplotlib",
         "periodictable",
         "pyrolite"
