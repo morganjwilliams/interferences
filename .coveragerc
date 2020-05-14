@@ -1,4 +1,5 @@
 [run]
+source = interferences
 omit =
     # Omit test and data files
     test/*
