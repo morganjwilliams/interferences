@@ -1,3 +1,6 @@
+"""
+Functions for creating, formatting and serialising representaitons of molecules.
+"""
 import pandas as pd
 import periodictable as pt
 from pyrolite.mineral.transform import merge_formulae

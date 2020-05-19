@@ -28,17 +28,33 @@ def get_table(store, key):
     return store.get("/" + key)
 
 
-def get_element_group(
-    store, identifier, key="table",
-):
+def lookup_component_subtable(store, identifier, key="table", window=None):
+    """
+    Look up a component-subtable from the store based on an identifier.
+
+    Parameters
+    ----------
+    store : :class:`pandas.HDFStore`
+        Store to search.
+    identifier : :class:`str`
+        Identifier for the subtable.
+    key : :class:`str`
+        Key for the table within the store.
+    window : :class:`tuple`
+        Window for indexing along m/z to return a subset of results.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+    """
     name = "/" + key
     if name in store.keys():
-        df = store.get(name)
-        if identifier in df.index.get_level_values("elements"):
-            return df.loc[identifier]
-        else:
-            raise KeyError("Identifier not in index.")
-    raise KeyError("Key not in table.")
+        where = "elements == '{}'".format(identifier)
+        if window:  # add the m_z window information
+            where += " & m_z >= {} & m_z <= {}".format(*window)
+        # get the sub-table, and drop the extra index level for simplicity
+        return store.select(name, where=where).droplevel("elements")
+    raise KeyError("Key not in HDFStore.")
 
 
 def load_groups_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs):
@@ -72,7 +88,7 @@ def dump_element_group(
     identifier,
     path=None,
     mode="a",
-    data_columns=["m_z", "iso_abund_product"],
+    data_columns=["elements", "m_z", "iso_abund_product"],
     complevel=_COMPLEVEL,
     complib=_COMPLIB,
     **kwargs
