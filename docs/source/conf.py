@@ -221,6 +221,7 @@ intersphinx_mapping = {
     "pytest": ("https://docs.pytest.org/en/latest/", None),
     "sphinx_gallery": ("https://sphinx-gallery.github.io/stable/", None),
     "mpltern": ("https://mpltern.readthedocs.io/en/latest/", None),
+    "pyrolite": ("https://pyrolite.readthedocs.io/en/master/", None),
 }
 
 # sphinx_gallery config
