@@ -16,6 +16,7 @@ from .store import (
 from .intensity import isotope_abundance_threshold, get_isotopic_abundance_product
 from .combinations import get_elemental_combinations, component_subtable
 from ..util.sorting import get_first_atom
+from ..util.mz import process_window
 import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -69,7 +70,6 @@ def build_table(
 
     While "m/z" would be an appropriate column name, it can't be used in HDF indexes.
     """
-
     table = pd.DataFrame(
         columns=["m_z", "molecule", "components", "mass", "charge", "iso_product",]
     )
@@ -77,6 +77,7 @@ def build_table(
     table = table.astype(
         {"mass": "float", "charge": "int8", "iso_product": "float", "m_z": "float",}
     )
+    window = process_window(window)
     # build up combinations of elements, forming the components column
     molecular_components = get_elemental_combinations(
         elements, max_atoms=max_atoms

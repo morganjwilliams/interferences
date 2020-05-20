@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 from ..util.meta import interferences_datafolder
+from ..util.mz import process_window
 import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
@@ -47,6 +48,7 @@ def lookup_component_subtable(store, identifier, key="table", window=None):
     -------
     :class:`pandas.DataFrame`
     """
+    window = process_window(window)
     name = "/" + key
     if name in store.keys():
         where = "elements == '{}'".format(identifier)
