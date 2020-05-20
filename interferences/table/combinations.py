@@ -10,6 +10,10 @@ from itertools import product, combinations_with_replacement
 from ..util.sorting import get_relative_electronegativity
 from .intensity import isotope_abundance_threshold, get_isotopic_abundance_product
 from .molecules import molecule_from_components, repr_formula
+import logging
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
 
 
 def get_elemental_combinations(elements, max_atoms=3):
@@ -71,7 +75,9 @@ def get_isotopic_combinations(element_comb, threshold=10e-8):
     iso_counters = [Counter(comb) for comb in product(*(iso_components))]
     # check for duplicates O(n^2) ~ n isn't likely very large, so this might be ok
     iso_combinations = [
-        list(c.elements()) for n, c in enumerate(iso_counters) if c not in iso_counters[:n]
+        list(c.elements())
+        for n, c in enumerate(iso_counters)
+        if c not in iso_counters[:n]
     ]
     return iso_combinations
 
@@ -108,11 +114,8 @@ def component_subtable(components, charges=[1, 2], threshold=10e-8):
     df["molecule"] = df["components"].apply(molecule_from_components)
     df["mass"] = df["molecule"].apply(lambda x: x.mass)
     df["m_z"] = df["mass"] / df["charge"]
-    # remove duplicate m/z #############################################################
-    df.drop(df.index[df["m_z"].duplicated()], axis="index", inplace=True)
     # get a string-based index #########################################################
     df.index = df["molecule"].apply(repr_formula)
     df.index += df["charge"].apply(lambda c: "+" * c)
     # for consistency, we could string-convert object columns here
-    print(df.index)
     return df

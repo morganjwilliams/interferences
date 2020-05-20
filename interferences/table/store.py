@@ -2,10 +2,11 @@ import os
 import pandas as pd
 from ..util.meta import interferences_datafolder
 from ..util.mz import process_window
+from .molecules import deduplicate
 import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
-
+logger = logging.getLogger(__name__)
 _COMPLEVEL = 4
 _COMPLIB = "lzo"
 _ITEMSIZES = {"elements": 30, "parts": 40, "components": 40, "molecule": 30}
@@ -52,10 +53,14 @@ def lookup_component_subtable(store, identifier, key="table", window=None):
     name = "/" + key
     if name in store.keys():
         where = "elements == '{}'".format(identifier)
-        if window:  # add the m_z window information
-            where += " & m_z >= {} & m_z <= {}".format(*window)
-        # get the sub-table, and drop the extra index level for simplicity
-        return store.select(name, where=where).droplevel("elements")
+        if not store.select(name, where=where).empty:
+            if window:  # add the m_z window information
+                where += " & m_z >= {:5f} & m_z <= {:5f}".format(*window)
+            logger.debug("Performing lookup where: " + where)
+            # get the sub-table, and drop the extra index level for simplicity
+            return store.select(name, where=where).droplevel("elements")
+        else:
+            raise IndexError("Identifer not in table.")
     raise KeyError("Key not in HDFStore.")
 
 
@@ -88,6 +93,7 @@ def load_groups_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwarg
 def dump_element_group(
     df,
     identifier,
+    charges=None,
     path=None,
     mode="a",
     data_columns=["elements", "m_z", "iso_abund_product"],
@@ -105,6 +111,8 @@ def dump_element_group(
         Dataframe to dump.
     identifier : :class:`str`
         Identifier for the group.
+    charges : :class:`list`
+        Charges used to create for the table.
     path : :class:`str` | :class:`pathlib.Path`
         Path to the file to add the table to.
     mode : :class:`str`
@@ -121,10 +129,13 @@ def dump_element_group(
     store = path or interferences_datafolder(subfolder="table") / "groups.h5"
 
     # convert non-string. non-numerical objects to string
-    # create hierarchical indexed
-    output = df.set_index(
+    # create hierarchical indexes
+    output = deduplicate(
+        df, charges=charges, multiples=False
+    )  # leave multiples for later
+    output = output.set_index(
         pd.MultiIndex.from_product(
-            [[identifier], df.index.to_list()], names=["elements", "parts"]
+            [[identifier], output.index.to_list()], names=["elements", "parts"]
         )
     )
     # append to the existing dataframe
@@ -189,6 +200,7 @@ def reset_group_tables(path=None, remove=True, format="table", **kwargs):
 
 def consoliate_groups(
     path=None,
+    charges=None,
     mode="a",
     data_columns=["m_z", "mass", "iso_abund_product"],
     complevel=_COMPLEVEL,
@@ -201,6 +213,8 @@ def consoliate_groups(
     ----------
     path : :class:`str` | :class:`pathlib.Path`
         Path to the file to add the table to.
+    charges : :class:`list`
+        Charges used to create for the table.
     mode : :class:`str`
         Mode for accessing the HDF file.
     data_columns : :class:`list`
@@ -222,6 +236,7 @@ def consoliate_groups(
     store = load_groups_store()
     df = get_table(store, "table").droplevel("elements")
     df.sort_values("m_z", inplace=True)
+    df = deduplicate(df, charges=charges)
     # pass off to separate h5 file which could be distributed and easily used
     # for queries etc
     df.to_hdf(

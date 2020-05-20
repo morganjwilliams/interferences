@@ -6,6 +6,67 @@ import periodictable as pt
 from pyrolite.mineral.transform import merge_formulae
 from ..util.sorting import get_relative_electronegativity
 from ..util.meta import interferences_datafolder
+import logging
+
+logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = logging.getLogger(__name__)
+
+
+def _find_duplicate_mz(df, charges=None):
+    """
+    Remove multiples of moleclues which have the same m/z (e.g. OH+, H2O2++).
+
+    Parameters
+    ----------
+    df : :class:`pandas.DataFrame`
+        Dataframe to check the index of.
+    charges : :class:`list`
+        List of valid charges for the frame.
+
+    Returns
+    -------
+    :class:`list:
+    """
+    mols = df.molecule.apply(pt.formula).values
+    drop = []
+    _charges = [i for i in charges if i > 1]
+    for m in mols:
+        for i in _charges:
+            mult = merge_formulae([m] * i)  # a multiple of this molecule
+            if mult in mols:
+                drop.append(repr_formula(mult) + "+" * i)
+    return drop
+
+
+def deduplicate(df, charges=None, multiples=True):
+    """
+    De-duplicate a frame based on index and molecule-multiples.
+
+    Parameters
+    ----------
+    df : :class:`pandas.DataFrame`
+        Dataframe to check the index of.
+    charges : :class:`list`
+        List of valid charges for the frame.
+    multiples : :class:`bool`
+        Whether to remove molecule-multiples.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+    """
+    # remove duplicate m/z #############################################################
+    if df.index.duplicated().any():
+        duplicates = df.index[df.index.duplicated(keep="first")]
+        logger.debug("Dropping duplicate indexes: {}".format(", ".join(duplicates)))
+        df = df.loc[~df.index.duplicated(keep="first")]  # drop any duplicate indexes
+
+    if multiples:
+        duplicated_mz = _find_duplicate_mz(df, charges=charges)
+        if duplicated_mz:
+            logger.debug("Dropping duplicate m_z: {}".format(", ".join(duplicated_mz)))
+            df = df.drop(duplicated_mz, axis="index")  # drop any duplicate m_z
+    return df
 
 
 def _get_isotope(element):
@@ -50,7 +111,7 @@ def get_molecule_labels(df):
     """
     # look up index values which are pre-computed
     label_src = interferences_datafolder(subfolder="table") / "molecular_labels.csv"
-    labels = pd.Series(index=df.index)
+    labels = pd.Series(index=df.index, name="label")
     try:
         _label_index = pd.read_csv(label_src, index_col=0)
         known_labels = _label_index.reindex(index=df.index).dropna().index
@@ -63,17 +124,22 @@ def get_molecule_labels(df):
         unknown_labels = df.index  # assume they're all unknown
 
     # fill in the gaps
-    labels[unknown_labels] = df.loc[unknown_labels, "molecule"].apply(
+    unkwn = df.loc[unknown_labels, "molecule"].apply(
         get_formatted_formula, sorted=True
-    )
-    labels[unknown_labels] += df.loc[unknown_labels, "charge"].apply(
+    ) + df.loc[unknown_labels, "charge"].apply(
         lambda c: r"$\mathrm{^{" + "+" * c + "}}$"
     )
-    # write out new index values to the datafile
+    labels.loc[unknown_labels] = unkwn
+    # append new index values to the datafile
     if unknown_labels.size:
-        pd.concat([_label_index, labels[unknown_labels]]).sort_index().to_csv(
-            label_src, index=True
-        )
+        if label_src.exists():
+            labels[unknown_labels].sort_index().to_csv(
+                label_src, mode="a", header=False, index=True
+            )
+        else:  # write and create the file with headers
+            labels[unknown_labels].sort_index().to_csv(
+                label_src, mode="w", header=True, index=True
+            )
     return labels
 
 

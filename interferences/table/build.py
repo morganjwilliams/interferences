@@ -6,6 +6,7 @@ from .molecules import (
     get_molecule_labels,
     repr_formula,
     _get_isotope,
+    deduplicate,
 )
 from .store import (
     load_groups_store,
@@ -96,16 +97,21 @@ def build_table(
             # create the whole table, ignoring window, to dump into refernce.
             df = component_subtable(components, charges=charges)
             dump_element_group(
-                df, identifier, path=groupstore
+                df, identifier, charges=charges, path=groupstore
             )  # append to the HDF store for later use
             updated_groups = True
 
             # filter for window here
-
+            if window is not None:
+                df = df.loc[df["m_z"].between(*window), :]
         table = pd.concat([table, df], axis=0, ignore_index=False)
     groupstore.close()
     if updated_groups:
-        consoliate_groups()  # update the interferences.h5 file with new data
+        consoliate_groups(
+            charges=charges
+        )  # update groups --> interferences.h5 file with new data
+        table = deduplicate(table, charges=charges)  # this table may have duplicates
+
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################
