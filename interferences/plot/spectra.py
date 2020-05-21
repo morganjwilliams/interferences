@@ -29,7 +29,8 @@ def stemplot(
     intensity_threshold=0.00001,
     yvar="iso_product",
     adjust_labels=True,
-    **kwargs,
+    add_patch=False,
+    **kwargs
 ):
     """
     Create a stemplot based spectra (zero-width peaks).
@@ -50,6 +51,8 @@ def stemplot(
         Column to use for the y-axis.
     adjust_labels : :class:`bool`
         Whether to adjust the label positions for clarity.
+    add_patch : :class:`bool`
+        Whether to add a label-deflecting patch over the peak area.
 
     Returns
     -------
@@ -87,8 +90,8 @@ def stemplot(
 
     annotations = []
     for row in table.index:
-        abund = table.loc[row, yvar]
-        if abund > threshold:
+        intensity = table.loc[row, yvar]
+        if intensity > intensity_threshold:
             # if abund < 0.5 :
             # if it's a primary peak (i.e. one elmeent), make it bold
             weights = {ix: weight for ix, weight in enumerate([800, 600, 400])}
@@ -104,15 +107,18 @@ def stemplot(
             # keep x position
 
     if adjust_labels and _have_adjustText:
-        # add an empty rectangle over the peaks
-        if window is None:
-            xm, dx = np.mean(ax.get_xlim()), np.diff(ax.get_xlim()) / 2
-        else:
-            xm, dx = np.mean(window), np.diff(window) / 2
-        ymax = 1
-        ym, dy = (ymin + ymax) / 2, (ymax - ymin) / 2
-        patch = rect_from_centre(xm, ym, dx=dx, dy=dy, fill=False, alpha=0)
-        ax.add_patch(patch)
+        add_objs = []
+        if add_patch:
+            # add an empty rectangle over the peaks
+            if window is None:
+                xm, dx = np.mean(ax.get_xlim()), np.diff(ax.get_xlim()) / 2
+            else:
+                xm, dx = np.mean(window), np.diff(window) / 2
+            ymax = 1
+            ym, dy = (ymin + ymax) / 2, (ymax - ymin) / 2
+            patch = rect_from_centre(xm, ym, dx=dx, dy=dy, fill=False, alpha=0)
+            ax.add_patch(patch)
+            add_objs.append(patch)
         adjust_text(
             annotations,
             table["m_z"].values,
@@ -126,7 +132,7 @@ def stemplot(
             # autoalign=False,
             # va="bottom",
             # ha="center",
-            add_objects=[patch],
+            add_objects=add_objs,
             arrowprops=dict(
                 arrowstyle="-",
                 connectionstyle="arc3,rad=0.1",
