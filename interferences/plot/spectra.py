@@ -3,7 +3,7 @@ Visualisation of mass spectra (intensity vs. m/z).
 """
 import matplotlib.pyplot as plt
 import pyrolite.plot
-
+import numpy as np
 from adjustText import adjust_text
 from ..util.mz import process_window
 from ..table import build_table
@@ -75,7 +75,8 @@ def stemplot(
         ax.set_xlim(window)
 
     ax.set_yscale("log")
-    ax.set_ylim(threshold / 10.0, 1000.0)
+    ymin = threshold / 10.0
+    ax.set_ylim(ymin, 1000.0)
 
     annotations = []
     for row in table.index:
@@ -87,6 +88,7 @@ def stemplot(
             _an = ax.annotate(
                 table.loc[row, "label"],
                 xy=(table.loc[row, "m_z"], table.loc[row, yvar]),
+                xytext=(table.loc[row, "m_z"], table.loc[row, yvar]),
                 fontsize=12,
                 fontweight=weights.get(row.count("["), 200)
                 # rotation=90,
@@ -96,24 +98,31 @@ def stemplot(
 
     if adjust_labels and _have_adjustText:
         # add an empty rectangle over the peaks
-        # xm, xw = np.mean(ax.get_xlim()), np.diff(ax.get_xlim())/2
-        # patch = rect_from_centre(xm, ym,width fill=False, alpha=0)
-
+        if window is None:
+            xm, dx = np.mean(ax.get_xlim()), np.diff(ax.get_xlim()) / 2
+        else:
+            xm, dx = np.mean(window), np.diff(window) / 2
+        ymax = 1
+        ym, dy = (ymin + ymax) / 2, (ymax - ymin) / 2
+        patch = rect_from_centre(xm, ym, dx=dx, dy=dy, fill=False, alpha=0)
+        ax.add_patch(patch)
         adjust_text(
             annotations,
             table["m_z"].values,
             table[yvar].values,
-            force_text=(0.05, 0.6),
-            # force_points=(0.2, 0.5),
-            # expand_points=(1.05, 1.05),
+            force_text=(0.2, 0.6),
+            force_objects=(0, 0.3),
+            force_points=(0.5, 0.5),
+            expand_text=(1.5, 1.5),
+            expand_points=(1.5, 1.5),
             # only_move={"text": "y"},
-            autoalign=None,
-            va="bottom",
-            ha="center",
-            # add_objects=[patch],
+            # autoalign=False,
+            # va="bottom",
+            # ha="center",
+            add_objects=[patch],
             arrowprops=dict(
                 arrowstyle="-",
-                connectionstyle="arc3,rad=0.2",
+                connectionstyle="arc3,rad=0.1",
                 color="0.5",
                 ls="--",
                 fc="w",
