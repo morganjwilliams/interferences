@@ -57,18 +57,18 @@ def stemplot(
     """
     window = process_window(window)
     if table is not None:
-        if not "label" in table.columns:
-            table["label"] = get_molecule_labels(table)
         if window is not None:
             # filter the table to match the window
             table = table.loc[table["m_z"].between(*window), :]
+        if not "label" in table.columns:
+            table["label"] = get_molecule_labels(table)
     elif components is not None:
         table = build_table(
             components, window=window, add_labels=True, **subkwargs(kwargs, build_table)
         )
     else:
         raise AssertionError("Either components or a built table must be supplied.")
-
+    
     ax = table.loc[:, ["m_z", yvar]].pyroplot.stem(ax=ax, **kwargs)
 
     if window is not None:
