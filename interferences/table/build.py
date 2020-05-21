@@ -12,7 +12,7 @@ from .molecules import (
 )
 from .store import (
     load_store,
-    dump_subtable,
+    dump_subtables,
     lookup_components,
 )
 from .intensity import isotope_abundance_threshold, get_isotopic_abundance_product
@@ -111,8 +111,8 @@ def build_table(
         if ID in build
     ]
     progressbar = tqdm(to_build)  # file=ToLogger(logger)
+    new_tables = []
     for ID, components in progressbar:
-
         relevant_ID = True
         if window is not None:  # check potential m_z relevance
             M = pt.formula(ID.replace("-", "")).mass
@@ -130,14 +130,17 @@ def build_table(
         if relevant_ID:
             # create the whole table, ignoring window, to dump into refernce.
             df = component_subtable(components, charges=charges)
+            df.name = ID
             progressbar.set_description("{} @ {:d} rows".format(ID, df.index.size))
             logger.debug("Building table for {} @ {:d} rows".format(ID, df.index.size))
-            # append to the HDF store for later use
-            dump_subtable(df, ID, charges=charges)
+            new_tables.append(df)
             # filter for window here
             if window is not None:
                 df = df.loc[df["m_z"].between(*window), :]
             table = pd.concat([table, df], axis=0, ignore_index=False)
+    # append new dfs to the HDF store for later use
+    if new_tables:
+        dump_subtables(new_tables, charges=charges)
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################

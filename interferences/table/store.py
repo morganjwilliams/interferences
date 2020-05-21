@@ -177,9 +177,8 @@ def get_store_index(path, drop_first_level=True, **kwargs):
     return index
 
 
-def dump_subtable(
-    df,
-    ID,
+def dump_subtables(
+    dfs,
     charges=None,
     path=None,
     mode="a",
@@ -193,10 +192,8 @@ def dump_subtable(
 
     Parameters
     ----------
-    df : :class:`pandas.DataFrame`
-        Dataframe to dump.
-    ID : :class:`str`
-        Identifier for the group.
+    dfs : :class:`list`(:class:`pandas.DataFrame`)
+        Dataframes to dump.
     charges : :class:`list`
         Charges used to create for the table.
     path : :class:`str` | :class:`pathlib.Path`
@@ -214,7 +211,11 @@ def dump_subtable(
     """
     path = path or interferences_datafolder(subfolder="table") / "interferences.h5"
     current_index = get_store_index(path).to_list()
-
+    identifiers = [id for d in dfs for id in [d.name] * d.index.size]
+    df = pd.concat(dfs, axis=0, ignore_index=False)
+    df.index.rename("parts", inplace=True)
+    df["elements"] = identifiers
+    ####################################################################################
     output = deduplicate(df, charges=charges, multiples=False)
 
     # take the index from df, and the index from the store and combine them
@@ -226,15 +227,17 @@ def dump_subtable(
             "Removing duplicates before dump: {}".format(", ".join(new_duplicates))
         )
         output.drop(index=new_duplicates, inplace=True)
-    idx = output.index
+
     # create hierarchical indexes
-    output = output.set_index(
-        pd.MultiIndex.from_product([[ID], idx.to_list()], names=["elements", "parts"])
-    )
+
+    output.set_index("elements", append=True, inplace=True)
+    output = output.reorder_levels(["elements", "parts"], axis=0)
     # convert non-string. non-numerical objects to string
     # append to the existing dataframe
     # somehow S[34]S[34]++ sneaks past
-    logger.debug("Dumping {} table to HDF store.".format(ID))
+    logger.debug(
+        "Dumping {} table to HDF store.".format(",".join(pd.unique(identifiers)))
+    )
     output.astype({"molecule": "str", "components": "str"}).to_hdf(
         path,
         key="table",
