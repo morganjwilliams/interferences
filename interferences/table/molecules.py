@@ -71,13 +71,13 @@ def deduplicate(df, charges=None, multiples=True):
     if multiples:
         idx = df.index
         dup_multiples = _find_duplicate_multiples(df, charges=charges)
-        if duplicated_mz:
+        if dup_multiples:
             logger.debug(
                 "Dropping multiples (duplicate m_z): {}".format(
                     ", ".join(dup_multiples)
                 )
             )
-            df = df.loc[idx.difference(dup_multiples), :]  # drop any duplicate m_z
+            df.drop(dup_multiples, axis=0, inplace=True)  # drop any duplicate m_z
     return df
 
 

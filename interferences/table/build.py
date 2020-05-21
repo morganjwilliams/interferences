@@ -83,34 +83,30 @@ def build_table(
         elements, max_atoms=max_atoms
     )  # this can't be split easily
 
-    store = load_store()
-
-    for components in molecular_components:
+    for components in molecular_components[::-1]: # backwards so small ones come first
         # convert elements to pt.core.Element
         components = [
             get_first_atom(el) if isinstance(el, str) else el for el in components
         ]
         identifier = "-".join([repr(c) for c in components])
         try:  # check if these are in the database
-            df = lookup_component_subtable(store, identifier, window=window)
+            df = lookup_component_subtable(identifier, window=window)
         except (KeyError, IndexError):  # if not, build it
             # create the whole table, ignoring window, to dump into refernce.
             df = component_subtable(components, charges=charges)
-            dump_subtable(
-                df, identifier, charges=charges, path=store
-            )  # append to the HDF store for later use
+            # append to the HDF store for later use
+            dump_subtable(df, identifier, charges=charges)
             # filter for window here
             if window is not None:
                 df = df.loc[df["m_z"].between(*window), :]
         table = pd.concat([table, df], axis=0, ignore_index=False)
-    store.close()
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################
     table.sort_values(sortby, axis="index", inplace=True)
     # additional columns ###############################################################
     if add_labels:  # this step is string-operation intensive, and hence very slow
-        logger.info('Adding labels to the table.')
+        logger.info("Adding labels to the table.")
         table["label"] = get_molecule_labels(table)
     # for consistency with prevsiouly serialized data:
     return table.astype({"molecule": str, "components": str})

@@ -43,17 +43,17 @@ def load_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs):
 
 
 def lookup_component_subtable(
-    store, identifier, key="table", window=None, drop_first_level=True
+    identifier, path=None, key="table", window=None, drop_first_level=True, **kwargs
 ):
     """
     Look up a component-subtable from the store based on an identifier.
 
     Parameters
     ----------
-    store : :class:`pandas.HDFStore`
-        Store to search.
     identifier : :class:`str`
         Identifier for the subtable.
+    path : :class:`str` | :class:`pathlib.Path`
+        Path to store to search.
     key : :class:`str`
         Key for the table within the store.
     window : :class:`tuple`
@@ -68,20 +68,46 @@ def lookup_component_subtable(
     logger.debug("Attempting lookup for Identifer: {}".format(identifier))
     window = process_window(window)
     name = "/" + key
-    if name in store.keys():
-        where = "elements == '{}'".format(identifier)
-        if not store.select(name, where=where).empty:
-            if window:  # add the m_z window information
-                where += " & m_z >= {:5f} & m_z <= {:5f}".format(*window)
-            logger.debug("Performing lookup where: " + where)
-            # get the sub-table, and drop the extra index level for simplicity
-            if drop_first_level:
-                return store.select(name, where=where).droplevel("elements")
+    with load_store(path, **kwargs) as store:
+        if name in store.keys():
+            where = "elements == '{}'".format(identifier)
+            if not store.select(name, where=where).empty:
+                if window:  # add the m_z window information
+                    where += " & m_z >= {:5f} & m_z <= {:5f}".format(*window)
+                logger.debug("Performing lookup where: " + where)
+                # get the sub-table, and drop the extra index level for simplicity
+                if drop_first_level:
+                    return store.select(name, where=where).droplevel("elements")
+                else:
+                    return store.select(name, where=where)
             else:
-                return store.select(name, where=where)
-        else:
-            raise IndexError("Identifer not in table.")
+                raise IndexError("Identifer not in table.")
     raise KeyError("Key not in HDFStore.")
+
+
+def _get_default_multiindex():
+    """
+    Build an empty multi-index for the table.
+
+    Returns
+    -------
+    :class:`pandas.MultiIndex`
+    """
+    return pd.MultiIndex.from_product([[], []], names=["elements", "parts"])
+
+
+def get_store_index(path, drop_first_level=True, **kwargs):
+    """
+    """
+    with load_store(path=path, **kwargs) as store:
+        store.keys()
+        if "/table" in store.keys():
+            index = store.select("/table", columns=[]).index
+        else:
+            index = _get_default_multiindex()  # empty index
+    if drop_first_level:
+        index = index.droplevel("elements")
+    return index
 
 
 def dump_subtable(
@@ -91,8 +117,6 @@ def dump_subtable(
     path=None,
     mode="a",
     data_columns=["elements", "m_z", "iso_abund_product"],
-    complevel=_COMPLEVEL,
-    complib=_COMPLIB,
     **kwargs
 ):
     """
@@ -119,34 +143,22 @@ def dump_subtable(
     complib : :class:`str`
         Which compression library to use.
     """
-    store = path or interferences_datafolder(subfolder="table") / "interferences.h5"
+    path = path or interferences_datafolder(subfolder="table") / "interferences.h5"
+    current_index = get_store_index(path)
 
-    if isinstance(store, (str, pathlib.Path)):
-        store = load_store(
-            path=path,
-            complevel=complevel,
-            complib=complib,
-            min_itemsize=_ITEMSIZES,
-            **kwargs
-        )
-    # try to get current index
-    if "/table" in store.keys():  #
-        current_index = store.select("/table", columns=[]).droplevel("elements").index
-    else:
-        current_index = pd.DataFrame().index  # empty index
-    output = deduplicate(df, charges=charges, multiples=False)
+    output = deduplicate(df, charges=charges, multiples=True)
     # take the index from df, and the index from the store and combine them
-    dup_multiples = output.index.intersection(
-        _find_duplicate_multiples(
-            pd.DataFrame(index=output.index.to_list() + current_index.to_list()),
-            charges=charges,
-        )
+    tabledelta_duplicates = _find_duplicate_multiples(
+        pd.DataFrame(index=output.index.to_list() + current_index.to_list()),
+        charges=charges,
     )
-    if dup_multiples.size:
+    new_duplicates = output.index.intersection(tabledelta_duplicates)
+
+    if new_duplicates.size:
         logger.debug(
-            "Removing duplicates before dump: {}".format(", ".join(dup_multiples))
+            "Removing duplicates before dump: {}".format(", ".join(new_duplicates))
         )
-        output.drop(dup_multiples, axis="index", inplace=True)
+        output.drop(new_duplicates, axis="index", inplace=True)
     # create hierarchical indexes
     output = output.set_index(
         pd.MultiIndex.from_product(
@@ -157,7 +169,7 @@ def dump_subtable(
     output = output.astype({"molecule": "str", "components": "str"})
     # append to the existing dataframe
     output.to_hdf(
-        store,
+        path,
         key="table",
         mode="a",
         append=True,
@@ -200,11 +212,14 @@ def reset_table(
         path.parent.mkdir(parents=True)  # ensure directory exists
     if remove:
         logger.debug("Removing store.")
-        os.remove(path)  # remove the file
+        try:
+            os.remove(path)  # remove the file
+        except FileNotFoundError:
+            logger.debug("Store already removed or not present.")
     else:  # keep table keys, set them to empty frames
         logger.debug("Resetting store table: {}/{}".format(path.name, key))
         df = pd.DataFrame(
-            index=pd.MultiIndex.from_product([[], []], names=["elements", "parts"]),
+            index=_get_default_multiindex(),
             columns=["m_z", "molecule", "components", "mass", "charge", "iso_product",],
         )
         df.to_hdf(
