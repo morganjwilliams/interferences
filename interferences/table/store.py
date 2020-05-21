@@ -213,29 +213,27 @@ def dump_subtable(
         Which compression library to use.
     """
     path = path or interferences_datafolder(subfolder="table") / "interferences.h5"
-    current_index = get_store_index(path)
+    current_index = get_store_index(path).to_list()
 
-    output = deduplicate(df, charges=charges, multiples=True)
+    output = deduplicate(df, charges=charges, multiples=False)
+
     # take the index from df, and the index from the store and combine them
-    tabledelta_duplicates = _find_duplicate_multiples(
-        pd.DataFrame(index=output.index.to_list() + current_index.to_list()),
-        charges=charges,
-    )
-    new_duplicates = output.index.intersection(tabledelta_duplicates)
-
-    if new_duplicates.size:
+    new_duplicates = _find_duplicate_multiples(
+        pd.DataFrame(index=output.index.to_list() + current_index), charges=charges,
+    )  # all of these should be in the output.index
+    if new_duplicates:
         logger.debug(
             "Removing duplicates before dump: {}".format(", ".join(new_duplicates))
         )
-        output.drop(new_duplicates, axis="index", inplace=True)
+        output.drop(index=new_duplicates, inplace=True)
+    idx = output.index
     # create hierarchical indexes
     output = output.set_index(
-        pd.MultiIndex.from_product(
-            [[ID], output.index.to_list()], names=["elements", "parts"]
-        )
+        pd.MultiIndex.from_product([[ID], idx.to_list()], names=["elements", "parts"])
     )
     # convert non-string. non-numerical objects to string
     # append to the existing dataframe
+    # somehow S[34]S[34]++ sneaks past
     logger.debug("Dumping {} table to HDF store.".format(ID))
     output.astype({"molecule": "str", "components": "str"}).to_hdf(
         path,

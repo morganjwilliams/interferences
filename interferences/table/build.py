@@ -110,8 +110,9 @@ def build_table(
         for (ID, components) in zip(identifiers, combinations)
         if ID in build
     ]
+    progressbar = tqdm(to_build)  # file=ToLogger(logger)
+    for ID, components in progressbar:
 
-    for ID, components in tqdm(to_build, file=ToLogger(logger), mininterval=2):
         relevant_ID = True
         if window is not None:  # check potential m_z relevance
             M = pt.formula(ID.replace("-", "")).mass
@@ -125,10 +126,11 @@ def build_table(
             )
             if not m_z_check:
                 relevant_ID = False
-            logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
+                logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
         if relevant_ID:
             # create the whole table, ignoring window, to dump into refernce.
             df = component_subtable(components, charges=charges)
+            progressbar.set_description("{} @ {:d} rows".format(ID, df.index.size))
             logger.debug("Building table for {} @ {:d} rows".format(ID, df.index.size))
             # append to the HDF store for later use
             dump_subtable(df, ID, charges=charges)

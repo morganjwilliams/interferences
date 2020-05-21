@@ -27,14 +27,17 @@ def _find_duplicate_multiples(df, charges=None):
     :class:`list:
     """
     mols = [pt.formula(i) for i in df.index.str.strip("+")]
-    drop = []
-    _charges = [i for i in charges if i > 1]
+
+    drop_mols = []
+    subset_charges = [i for i in charges if i > 1]
     for m in mols:
-        for i in _charges:
-            mult = merge_formulae([m] * i)  # a multiple of this molecule
+        for c in subset_charges:
+            mult = merge_formulae([m] * c)  # a multiple of this molecule
             if mult in mols:
-                drop.append(repr_formula(mult) + "+" * i)
-    return drop
+                drop_mols.append(repr_formula(mult) + "+" * c)
+    # this will erraneously add XX++ where XX+ exists (which is valid)
+    drop_mols = [i for i in drop_mols if i in df.index]
+    return drop_mols
 
 
 def _find_duplicate_indexes(df):
