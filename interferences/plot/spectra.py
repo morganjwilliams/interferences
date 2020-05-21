@@ -29,7 +29,8 @@ def stemplot(
     intensity_threshold=0.00001,
     yvar="iso_product",
     adjust_labels=True,
-    add_patch=False,
+    add_patch=True,
+    max_labels=12,
     **kwargs
 ):
     """
@@ -53,6 +54,8 @@ def stemplot(
         Whether to adjust the label positions for clarity.
     add_patch : :class:`bool`
         Whether to add a label-deflecting patch over the peak area.
+    max_labels : :class:`int`
+        Maximum labels to add to the plot.
 
     Returns
     -------
@@ -89,12 +92,13 @@ def stemplot(
     ax.set_ylim(ymin, 1000.0)
 
     annotations = []
-    for row in table.index:
+    weights = {ix: weight for ix, weight in enumerate([800, 600, 400])}
+    for row in table.nlargest(max_labels, yvar).index:
         intensity = table.loc[row, yvar]
         if intensity > intensity_threshold:
             # if abund < 0.5 :
             # if it's a primary peak (i.e. one elmeent), make it bold
-            weights = {ix: weight for ix, weight in enumerate([800, 600, 400])}
+
             _an = ax.annotate(
                 table.loc[row, "label"],
                 xy=(table.loc[row, "m_z"], table.loc[row, yvar]),
@@ -123,11 +127,11 @@ def stemplot(
             annotations,
             table["m_z"].values,
             table[yvar].values,
-            force_text=(0.2, 0.6),
-            force_objects=(0, 0.3),
-            force_points=(0.5, 0.5),
+            force_text=(0.2, 1),
+            force_objects=(0, 0.5),
+            force_points=(0, 0.5),
             expand_text=(1.5, 1.5),
-            expand_points=(1.5, 1.5),
+            expand_points=(4, 4),
             # only_move={"text": "y"},
             # autoalign=False,
             # va="bottom",
