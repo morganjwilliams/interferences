@@ -39,7 +39,8 @@ setup(
         "matplotlib",
         "periodictable",
         "pyrolite",
-        "adjustText", # automated label movement
+        "adjustText",  # automated label movement
+        "tqdm",
     ],
     extras_require={"dev": docs_require + tests_require, "docs": docs_require},
     tests_require=tests_require,

@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
 import periodictable as pt
+from tqdm import tqdm
+from pyrolite.util.meta import ToLogger
 from .molecules import (
     molecule_from_components,
     get_molecule_labels,
@@ -103,34 +105,37 @@ def build_table(
     except (KeyError, IndexError):
         build = identifiers
 
-    for ID, components in zip(identifiers, combinations):
-        if ID in build:
-            relevant_ID = True
-            if window is not None:  # check potential m_z relevance
-                M = pt.formula(ID.replace("-", "")).mass
-                # check whether mz is within margin of target
-                margin = 0.10  # 10%
-                m_z_check = any(
-                    [
-                        window[0] * (1 - margin) < M / c < window[1] * (1 + margin)
-                        for c in charges
-                    ]
-                )
-                if not m_z_check:
-                    relevant_ID = False
-                logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
-            if relevant_ID:
-                # create the whole table, ignoring window, to dump into refernce.
-                df = component_subtable(components, charges=charges)
-                logger.debug(
-                    "Building table for {} @ {:d} rows".format(ID, df.index.size)
-                )
-                # append to the HDF store for later use
-                dump_subtable(df, ID, charges=charges)
-                # filter for window here
-                if window is not None:
-                    df = df.loc[df["m_z"].between(*window), :]
-                table = pd.concat([table, df], axis=0, ignore_index=False)
+    to_build = [
+        (ID, components)
+        for (ID, components) in zip(identifiers, combinations)
+        if ID in build
+    ]
+
+    for ID, components in tqdm(to_build, file=ToLogger(logger), mininterval=2):
+        relevant_ID = True
+        if window is not None:  # check potential m_z relevance
+            M = pt.formula(ID.replace("-", "")).mass
+            # check whether mz is within margin of target
+            margin = 0.10  # 10%
+            m_z_check = any(
+                [
+                    window[0] * (1 - margin) < M / c < window[1] * (1 + margin)
+                    for c in charges
+                ]
+            )
+            if not m_z_check:
+                relevant_ID = False
+            logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
+        if relevant_ID:
+            # create the whole table, ignoring window, to dump into refernce.
+            df = component_subtable(components, charges=charges)
+            logger.debug("Building table for {} @ {:d} rows".format(ID, df.index.size))
+            # append to the HDF store for later use
+            dump_subtable(df, ID, charges=charges)
+            # filter for window here
+            if window is not None:
+                df = df.loc[df["m_z"].between(*window), :]
+            table = pd.concat([table, df], axis=0, ignore_index=False)
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################

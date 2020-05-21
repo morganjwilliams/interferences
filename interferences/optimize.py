@@ -3,6 +3,9 @@ Functions for looking into ways for minimising interferences.
 """
 import pandas as pd
 import periodictable as pt
+from .util.log import Handle
+
+logger = Handle(__name__)
 
 
 def sum_of_interferences(ion, composition=None, window=0.1):
