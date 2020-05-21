@@ -92,7 +92,7 @@ def build_table(
         ]
         identifier = "-".join([repr(c) for c in components])
         try:  # check if these are in the database
-            df = lookup_component_subtable(groupstore, identifier, window=window)
+            df = lookup_component_subtable(store, identifier, window=window)
         except (KeyError, IndexError):  # if not, build it
             # create the whole table, ignoring window, to dump into refernce.
             df = component_subtable(components, charges=charges)
