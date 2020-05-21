@@ -9,10 +9,9 @@ from .molecules import (
     deduplicate,
 )
 from .store import (
-    load_groups_store,
-    dump_element_group,
+    load_store,
+    dump_subtable,
     lookup_component_subtable,
-    consoliate_groups,
 )
 from .intensity import isotope_abundance_threshold, get_isotopic_abundance_product
 from .combinations import get_elemental_combinations, component_subtable
@@ -83,8 +82,9 @@ def build_table(
     molecular_components = get_elemental_combinations(
         elements, max_atoms=max_atoms
     )  # this can't be split easily
-    groupstore = load_groups_store()
-    updated_groups = False
+
+    store = load_store()
+
     for components in molecular_components:
         # convert elements to pt.core.Element
         components = [
@@ -96,28 +96,21 @@ def build_table(
         except (KeyError, IndexError):  # if not, build it
             # create the whole table, ignoring window, to dump into refernce.
             df = component_subtable(components, charges=charges)
-            dump_element_group(
-                df, identifier, charges=charges, path=groupstore
+            dump_subtable(
+                df, identifier, charges=charges, path=store
             )  # append to the HDF store for later use
-            updated_groups = True
-
             # filter for window here
             if window is not None:
                 df = df.loc[df["m_z"].between(*window), :]
         table = pd.concat([table, df], axis=0, ignore_index=False)
-    groupstore.close()
-    if updated_groups:
-        consoliate_groups(
-            charges=charges
-        )  # update groups --> interferences.h5 file with new data
-        table = deduplicate(table, charges=charges)  # this table may have duplicates
-
+    store.close()
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################
     table.sort_values(sortby, axis="index", inplace=True)
     # additional columns ###############################################################
     if add_labels:  # this step is string-operation intensive, and hence very slow
+        logger.info('Adding labels to the table.')
         table["label"] = get_molecule_labels(table)
     # for consistency with prevsiouly serialized data:
     return table.astype({"molecule": str, "components": str})

@@ -1,9 +1,9 @@
 import unittest
 from interferences.table.store import (
-    load_groups_store,
+    load_store,
     lookup_component_subtable,
-    reset_group_tables,
-    consoliate_groups,
+    reset_group_table,
+    dump_subtable,
 )
 
 if __name__ == "__main__":

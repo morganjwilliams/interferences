@@ -8,7 +8,7 @@ from .build import build_table
 import logging
 
 logging.getLogger(__name__).addHandler(logging.NullHandler())
-
+logger = logging.getLogger(__name__)
 
 # note that only some of these methods will be valid for series
 @pd.api.extensions.register_series_accessor("interf")

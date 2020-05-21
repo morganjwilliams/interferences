@@ -12,7 +12,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 logger = logging.getLogger(__name__)
 
 
-def _find_duplicate_mz(df, charges=None):
+def _find_duplicate_multiples(df, charges=None):
     """
     Remove multiples of moleclues which have the same m/z (e.g. OH+, H2O2++).
 
@@ -27,7 +27,7 @@ def _find_duplicate_mz(df, charges=None):
     -------
     :class:`list:
     """
-    mols = df.molecule.apply(pt.formula).values
+    mols = [pt.formula(i) for i in df.index.str.strip("+")]
     drop = []
     _charges = [i for i in charges if i > 1]
     for m in mols:
@@ -38,9 +38,13 @@ def _find_duplicate_mz(df, charges=None):
     return drop
 
 
+def _find_duplicate_indexes(df):
+    return df.index[df.index.duplicated(keep="first")]
+
+
 def deduplicate(df, charges=None, multiples=True):
     """
-    De-duplicate a frame based on index and molecule-multiples.
+    De-duplicate a dataframe index based on index values and and molecule-multiples.
 
     Parameters
     ----------
@@ -56,16 +60,24 @@ def deduplicate(df, charges=None, multiples=True):
     :class:`pandas.DataFrame`
     """
     # remove duplicate m/z #############################################################
-    if df.index.duplicated().any():
-        duplicates = df.index[df.index.duplicated(keep="first")]
+    idx = df.index
+    if idx.duplicated().any():
+        duplicates = _find_duplicate_indexes(df)
         logger.debug("Dropping duplicate indexes: {}".format(", ".join(duplicates)))
-        df = df.loc[~df.index.duplicated(keep="first")]  # drop any duplicate indexes
+        df.drop_duplicates(
+            subset="index", keep="first", inplace=True
+        )  # drop any duplicate indexes
 
     if multiples:
-        duplicated_mz = _find_duplicate_mz(df, charges=charges)
+        idx = df.index
+        dup_multiples = _find_duplicate_multiples(df, charges=charges)
         if duplicated_mz:
-            logger.debug("Dropping duplicate m_z: {}".format(", ".join(duplicated_mz)))
-            df = df.drop(duplicated_mz, axis="index")  # drop any duplicate m_z
+            logger.debug(
+                "Dropping multiples (duplicate m_z): {}".format(
+                    ", ".join(dup_multiples)
+                )
+            )
+            df = df.loc[idx.difference(dup_multiples), :]  # drop any duplicate m_z
     return df
 
 
