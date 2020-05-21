@@ -4,10 +4,9 @@ Placing constraints on mass spectra using compositional information.
 import pandas as pd
 import periodictable as pt
 from pyrolite.geochem.norm import get_reference_composition
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-logger = logging.getLogger(__name__)
+logger = Handle(__name__)
 
 
 def constrained_abundance_estimate(composition, formula):
@@ -37,7 +36,7 @@ def constrained_abundance_estimate(composition, formula):
     elif isinstance(formula, str):
         return constrained_abundance_estimate(composition, pt.formula(compound=formula))
     else:
-        print(formula, type(formula))
+        # print(formula, type(formula))
         raise AssertionError
 
 

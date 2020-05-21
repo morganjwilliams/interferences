@@ -1,4 +1,7 @@
 import periodictable as pt
+from .log import Handle
+
+logger = Handle(__name__)
 
 
 def process_window(window):

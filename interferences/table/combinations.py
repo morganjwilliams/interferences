@@ -10,10 +10,9 @@ from itertools import product, combinations_with_replacement
 from ..util.sorting import get_relative_electronegativity
 from .intensity import isotope_abundance_threshold, get_isotopic_abundance_product
 from .molecules import molecule_from_components, repr_formula
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-logger = logging.getLogger(__name__)
+logger = Handle(__name__)
 
 
 def get_elemental_combinations(elements, max_atoms=3):
@@ -42,7 +41,7 @@ def get_elemental_combinations(elements, max_atoms=3):
         components = combinations_with_replacement(elements, n)
         poss_mol_parts += list(components)
         n -= 1
-    return poss_mol_parts
+    return poss_mol_parts[::-1]  # backwards so small ones come first
 
 
 def get_isotopic_combinations(element_comb, threshold=10e-8):

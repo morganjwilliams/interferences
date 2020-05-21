@@ -11,15 +11,15 @@ from .molecules import (
 from .store import (
     load_store,
     dump_subtable,
-    lookup_component_subtable,
+    lookup_components,
 )
 from .intensity import isotope_abundance_threshold, get_isotopic_abundance_product
 from .combinations import get_elemental_combinations, component_subtable
 from ..util.sorting import get_first_atom
 from ..util.mz import process_window
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = Handle(__name__)
 
 
 def build_table(
@@ -79,27 +79,58 @@ def build_table(
     )
     window = process_window(window)
     # build up combinations of elements, forming the components column
-    molecular_components = get_elemental_combinations(
-        elements, max_atoms=max_atoms
-    )  # this can't be split easily
-
-    for components in molecular_components[::-1]: # backwards so small ones come first
-        # convert elements to pt.core.Element
-        components = [
-            get_first_atom(el) if isinstance(el, str) else el for el in components
+    # this can't be split easily
+    combinations = get_elemental_combinations(elements, max_atoms=max_atoms)
+    logger.info("Building {:d} component combinations.".format(len(combinations)))
+    # convert elements to pt.core.Element
+    combinations = [
+        [get_first_atom(el) if isinstance(el, str) else el for el in components]
+        for components in combinations
+    ]
+    identifiers = [
+        "-".join([repr(c) for c in components]) for components in combinations
+    ]
+    # could do a loookup here for all the identifiers, then go build the unkonwn ones
+    try:
+        lookup = lookup_components(identifiers)  # ignore window here
+        build = [
+            i for i in identifiers if i not in lookup.index.get_level_values("elements")
         ]
-        identifier = "-".join([repr(c) for c in components])
-        try:  # check if these are in the database
-            df = lookup_component_subtable(identifier, window=window)
-        except (KeyError, IndexError):  # if not, build it
-            # create the whole table, ignoring window, to dump into refernce.
-            df = component_subtable(components, charges=charges)
-            # append to the HDF store for later use
-            dump_subtable(df, identifier, charges=charges)
-            # filter for window here
-            if window is not None:
-                df = df.loc[df["m_z"].between(*window), :]
-        table = pd.concat([table, df], axis=0, ignore_index=False)
+        lookup = lookup.droplevel("elements")
+        if window is not None:  # process_window for lookup
+            lookup = lookup.loc[lookup.m_z.between(*window)]
+        table = pd.concat([table, lookup], axis=0, ignore_index=False)
+    except (KeyError, IndexError):
+        build = identifiers
+
+    for ID, components in zip(identifiers, combinations):
+        if ID in build:
+            relevant_ID = True
+            if window is not None:  # check potential m_z relevance
+                M = pt.formula(ID.replace("-", "")).mass
+                # check whether mz is within margin of target
+                margin = 0.10  # 10%
+                m_z_check = any(
+                    [
+                        window[0] * (1 - margin) < M / c < window[1] * (1 + margin)
+                        for c in charges
+                    ]
+                )
+                if not m_z_check:
+                    relevant_ID = False
+                logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
+            if relevant_ID:
+                # create the whole table, ignoring window, to dump into refernce.
+                df = component_subtable(components, charges=charges)
+                logger.debug(
+                    "Building table for {} @ {:d} rows".format(ID, df.index.size)
+                )
+                # append to the HDF store for later use
+                dump_subtable(df, ID, charges=charges)
+                # filter for window here
+                if window is not None:
+                    df = df.loc[df["m_z"].between(*window), :]
+                table = pd.concat([table, df], axis=0, ignore_index=False)
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################

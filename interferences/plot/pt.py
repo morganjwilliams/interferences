@@ -1,6 +1,6 @@
 """
 Visualisation using of a periodic table.
 """
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = Handle(__name__)

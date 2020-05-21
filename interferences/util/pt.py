@@ -1,6 +1,9 @@
 import pandas as pd
 import numpy as np
 import periodictable as pt
+from .log import Handle
+
+logger = Handle(__name__)
 
 
 def _fltr_by_n(low=None, high=None):

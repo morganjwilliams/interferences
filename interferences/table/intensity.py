@@ -2,9 +2,9 @@
 Functions to threshold, combine and estimate intensities of elements and isotopes
 based on their abundances.
 """
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = Handle(__name__)
 
 def isotope_abundance_threshold(isotopes, threshold=10e-8):
     """

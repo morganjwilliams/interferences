@@ -1,9 +1,8 @@
 from pathlib import Path
 from pyrolite.util.meta import get_module_datafolder
-import logging
+from .log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-logger = logging.getLogger(__name__)
+logger = Handle(__name__)
 
 
 def interferences_datafolder(subfolder=None):

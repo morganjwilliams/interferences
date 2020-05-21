@@ -5,10 +5,9 @@ import pandas as pd
 import numpy as np
 import periodictable as pt
 from .build import build_table
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-logger = logging.getLogger(__name__)
+logger = Handle(__name__)
 
 # note that only some of these methods will be valid for series
 @pd.api.extensions.register_series_accessor("interf")

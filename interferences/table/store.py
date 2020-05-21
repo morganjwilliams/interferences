@@ -4,10 +4,9 @@ import pathlib
 from ..util.meta import interferences_datafolder
 from ..util.mz import process_window
 from .molecules import deduplicate, _find_duplicate_multiples
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-logger = logging.getLogger(__name__)
+logger = Handle(__name__)
 
 _COMPLEVEL = 4
 _COMPLIB = "lzo"
@@ -42,6 +41,72 @@ def load_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs):
     return store
 
 
+def lookup_components(identifier, path=None, key="table", window=None, **kwargs):
+    """
+    Look up a a list of components from the store based on their identifiers.
+
+    Parameters
+    ----------
+    identifiers : :class:`str`
+        Identifiers for the components to look up.
+    path : :class:`str` | :class:`pathlib.Path`
+        Path to store to search.
+    key : :class:`str`
+        Key for the table within the store.
+    window : :class:`tuple`
+        Window for indexing along m/z to return a subset of results.
+    drop_first_level : :class:`bool`
+        Whether to drop the first level of the index for simplicity.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+    """
+    logger.debug("Attempting identifier lookup.")
+    window = process_window(window)
+    name = "/" + key
+
+    multi = ""
+    if isinstance(identifier, str):
+        multi_lookup = False
+    elif isinstance(identifier, (list, pd.Index)) and len(identifier) == 1:
+        multi_lookup = False
+        identifier = identifier[0]
+    else:
+        multi_lookup = True
+        multi = "multi-"
+
+    try:
+        with load_store(path, **kwargs) as store:
+
+            where = []
+            empty = False
+            if not multi_lookup:
+                where += ["elements == '{}'".format(identifier)]
+                empty = store.select(name, where=" & ".join(where)).empty
+            if window:  # add the m_z window information
+                where += ["m_z >= {:5f} & m_z <= {:5f}".format(*window)]
+
+            msg = "Performing {}lookup".format(multi)
+            if where:
+                msg += " & ".join(where)
+            logger.debug(msg)
+
+            if not empty:
+                df = store.select(name, where=" & ".join(where))
+            else:
+                raise IndexError("Identifer(s) not in table.")
+
+            if multi_lookup:
+                tbl_idents = df.index.droplevel("parts")
+                df = df.loc[[i for i in identifier if i in tbl_idents]]
+
+            return df
+    except KeyError:
+        raise KeyError("Key not in HDFStore.")
+
+
+'''
 def lookup_component_subtable(
     identifier, path=None, key="table", window=None, drop_first_level=True, **kwargs
 ):
@@ -70,6 +135,7 @@ def lookup_component_subtable(
     name = "/" + key
     with load_store(path, **kwargs) as store:
         if name in store.keys():
+
             where = "elements == '{}'".format(identifier)
             if not store.select(name, where=where).empty:
                 if window:  # add the m_z window information
@@ -83,6 +149,7 @@ def lookup_component_subtable(
             else:
                 raise IndexError("Identifer not in table.")
     raise KeyError("Key not in HDFStore.")
+'''
 
 
 def _get_default_multiindex():
@@ -112,11 +179,13 @@ def get_store_index(path, drop_first_level=True, **kwargs):
 
 def dump_subtable(
     df,
-    identifier,
+    ID,
     charges=None,
     path=None,
     mode="a",
     data_columns=["elements", "m_z", "iso_abund_product"],
+    complevel=_COMPLEVEL,
+    complib=_COMPLIB,
     **kwargs
 ):
     """
@@ -126,7 +195,7 @@ def dump_subtable(
     ----------
     df : :class:`pandas.DataFrame`
         Dataframe to dump.
-    identifier : :class:`str`
+    ID : :class:`str`
         Identifier for the group.
     charges : :class:`list`
         Charges used to create for the table.
@@ -162,13 +231,13 @@ def dump_subtable(
     # create hierarchical indexes
     output = output.set_index(
         pd.MultiIndex.from_product(
-            [[identifier], output.index.to_list()], names=["elements", "parts"]
+            [[ID], output.index.to_list()], names=["elements", "parts"]
         )
     )
     # convert non-string. non-numerical objects to string
-    output = output.astype({"molecule": "str", "components": "str"})
     # append to the existing dataframe
-    output.to_hdf(
+    logger.debug("Dumping {} table to HDF store.".format(ID))
+    output.astype({"molecule": "str", "components": "str"}).to_hdf(
         path,
         key="table",
         mode="a",
@@ -176,6 +245,8 @@ def dump_subtable(
         format="table",
         data_columns=data_columns,
         min_itemsize=_ITEMSIZES,
+        complevel=_COMPLEVEL,
+        complib=_COMPLIB,
     )
 
 
@@ -227,6 +298,7 @@ def reset_table(
             key=key,
             format=format,
             mode="w",
+            append=True,
             complevel=complevel,
             complib=complib,
             min_itemsize=_ITEMSIZES,

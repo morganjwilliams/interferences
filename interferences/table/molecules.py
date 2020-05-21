@@ -6,10 +6,9 @@ import periodictable as pt
 from pyrolite.mineral.transform import merge_formulae
 from ..util.sorting import get_relative_electronegativity
 from ..util.meta import interferences_datafolder
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
-logger = logging.getLogger(__name__)
+logger = Handle(__name__)
 
 
 def _find_duplicate_multiples(df, charges=None):

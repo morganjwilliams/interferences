@@ -2,6 +2,6 @@
 Submodule for visualisation and visual interrogation of mass spectra and potential
 interference patterns.
 """
-import logging
+from ..util.log import Handle
 
-logging.getLogger(__name__).addHandler(logging.NullHandler())
+logger = Handle(__name__)
