@@ -1,8 +1,8 @@
 import unittest
 from interferences.table.store import (
     load_store,
-    lookup_component_subtable,
-    reset_group_table,
+    lookup_components,
+    reset_table,
     dump_subtable,
 )
 
