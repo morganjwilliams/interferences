@@ -26,7 +26,7 @@ def stemplot(
     components=None,
     table=None,
     window=None,
-    threshold=10e-8,
+    intensity_threshold=0.00001,
     yvar="iso_product",
     adjust_labels=True,
     **kwargs,
@@ -44,8 +44,8 @@ def stemplot(
         Table of interferences to use for the plot.
     window : :class:`tuple`
         Window in m/z to use for the plot. Can specify (low, high) or (isotope, width).
-    threshold : :class:`float`
-        Threshold for low-abundance isotopes to ignore.
+    intensity_threshold : :class:`float`
+        Threshold for low-intensity peaks to ignore.
     yvar : :class:`str`
         Column to use for the y-axis.
     adjust_labels : :class:`bool`
@@ -60,22 +60,29 @@ def stemplot(
         if window is not None:
             # filter the table to match the window
             table = table.loc[table["m_z"].between(*window), :]
+
         if not "label" in table.columns:
+            logger.debug("Fetching labels.")
             table["label"] = get_molecule_labels(table)
+            logger.debug("Labels fetched.")
     elif components is not None:
         table = build_table(
-            components, window=window, add_labels=True, **subkwargs(kwargs, build_table)
+            components,
+            window=window,
+            add_labels=True,
+            **subkwargs(kwargs, build_table),
         )
     else:
         raise AssertionError("Either components or a built table must be supplied.")
-    
+
+    logger.debug("Plotting {} peaks.".format(table.index.size))
     ax = table.loc[:, ["m_z", yvar]].pyroplot.stem(ax=ax, **kwargs)
 
     if window is not None:
         ax.set_xlim(window)
 
     ax.set_yscale("log")
-    ymin = threshold / 10.0
+    ymin = intensity_threshold / 10.0
     ax.set_ylim(ymin, 1000.0)
 
     annotations = []

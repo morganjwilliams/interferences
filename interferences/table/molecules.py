@@ -11,6 +11,10 @@ from ..util.log import Handle
 
 logger = Handle(__name__)
 
+_COMPLEVEL = 4
+_COMPLIB = "lzo"
+_ITEMSIZES = {"label": 50, "index": 40}
+
 
 def _find_duplicate_multiples(df, charges=None):
     """
@@ -109,7 +113,7 @@ def repr_formula(molecule):
     return "".join(parts)
 
 
-def get_molecule_labels(df):
+def get_molecule_labels(df, **kwargs):
     """
     Get labels for molecules based on their composition and charge.
 
@@ -122,35 +126,56 @@ def get_molecule_labels(df):
     :class:`pandas.Series`
     """
     # look up index values which are pre-computed
-    label_src = interferences_datafolder(subfolder="table") / "molecular_labels.csv"
-    labels = pd.Series(index=df.index, name="label")
+    label_src = interferences_datafolder(subfolder="table") / "labels.h5"
+    labels = pd.DataFrame(index=df.index, columns=["label"])
     try:
-        _label_index = pd.read_csv(label_src, index_col=0)
-        known_labels = _label_index.reindex(index=df.index).dropna().index
-        unknown_labels = df.index.difference(known_labels)
+        with pd.HDFStore(
+            label_src, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs
+        ) as store:
+            label_store = store.select("/table")
 
-        if known_labels.size:
-            labels[known_labels] = _label_index["label"]
-    except (ValueError, FileNotFoundError):
-        _label_index = pd.DataFrame(columns=["label"])
-        unknown_labels = df.index  # assume they're all unknown
+        known = label_store.index.intersection(df.index)
+        unknown = df.index.difference(known)
+        if known.size:
+            labels.loc[known, "label"] = label_store["label"]
 
-    # fill in the gaps
-    unkwn = df.loc[unknown_labels, "molecule"].apply(
-        get_formatted_formula, sorted=True
-    ) + df.loc[unknown_labels, "charge"].apply(
-        lambda c: r"$\mathrm{^{" + "+" * c + "}}$"
-    )
-    labels.loc[unknown_labels] = unkwn
-    # append new index values to the datafile
-    if unknown_labels.size:
+    except (KeyError, FileNotFoundError):
+        label_store = pd.DataFrame(columns=["label"])
+        unknown = df.index  # assume they're all unknown
+
+    if unknown.size:
+        logger.debug("Buiding {} labels.".format(unknown.size))
+        # fill in the gaps
+
+        mols = df.loc[unknown, "molecule"].apply(get_formatted_formula, sorted=True)
+        charges = df.loc[unknown, "charge"].apply(
+            lambda c: r"$\mathrm{^{" + "+" * c + "}}$"
+        )
+        labels.loc[unknown, "label"] = mols + charges
+        # append new index values to the datafile
+        logger.debug("Dumping {} labels to file.".format(unknown.size))
+
         if label_src.exists():
-            labels[unknown_labels].sort_index().to_csv(
-                label_src, mode="a", header=False, index=True
+            labels.loc[unknown].to_hdf(
+                label_src,
+                key="table",
+                mode="a",
+                append=True,
+                format="table",
+                min_itemsize=_ITEMSIZES,
+                complevel=_COMPLEVEL,
+                complib=_COMPLIB,
             )
         else:  # write and create the file with headers
-            labels[unknown_labels].sort_index().to_csv(
-                label_src, mode="w", header=True, index=True
+            labels.loc[unknown].to_hdf(
+                label_src,
+                key="table",
+                mode="w",
+                append=True,
+                format="fixed",
+                min_itemsize=_ITEMSIZES,
+                complevel=_COMPLEVEL,
+                complib=_COMPLIB,
             )
     return labels
 
