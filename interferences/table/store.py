@@ -75,81 +75,33 @@ def lookup_components(identifier, path=None, key="table", window=None, **kwargs)
     else:
         multi_lookup = True
         multi = "multi-"
-
-    try:
-        with load_store(path, **kwargs) as store:
-
-            where = []
-            empty = False
-            if not multi_lookup:
-                where += ["elements == '{}'".format(identifier)]
-                empty = store.select(name, where=" & ".join(where)).empty
-            if window:  # add the m_z window information
-                where += ["m_z >= {:5f} & m_z <= {:5f}".format(*window)]
-
-            msg = "Performing {}lookup".format(multi)
-            if where:
-                msg += " & ".join(where)
-            logger.debug(msg)
-
-            if not empty:
-                df = store.select(name, where=" & ".join(where))
-            else:
-                raise IndexError("Identifer(s) not in table.")
-
-            if multi_lookup:
-                tbl_idents = df.index.droplevel("parts")
-                df = df.loc[[i for i in identifier if i in tbl_idents]]
-
-            return df
-    except KeyError:
-        raise KeyError("Key not in HDFStore.")
-
-
-'''
-def lookup_component_subtable(
-    identifier, path=None, key="table", window=None, drop_first_level=True, **kwargs
-):
-    """
-    Look up a component-subtable from the store based on an identifier.
-
-    Parameters
-    ----------
-    identifier : :class:`str`
-        Identifier for the subtable.
-    path : :class:`str` | :class:`pathlib.Path`
-        Path to store to search.
-    key : :class:`str`
-        Key for the table within the store.
-    window : :class:`tuple`
-        Window for indexing along m/z to return a subset of results.
-    drop_first_level : :class:`bool`
-        Whether to drop the first level of the index for simplicity.
-
-    Returns
-    -------
-    :class:`pandas.DataFrame`
-    """
-    logger.debug("Attempting lookup for Identifer: {}".format(identifier))
-    window = process_window(window)
-    name = "/" + key
+    # try:
     with load_store(path, **kwargs) as store:
-        if name in store.keys():
+        where = []
+        empty = False
+        if not multi_lookup:
+            where += ["elements == '{}'".format(identifier)]
+            empty = store.select(name, where=" & ".join(where)).empty
+        if window:  # add the m_z window information
+            where += ["m_z >= {:5f} & m_z <= {:5f}".format(*window)]
 
-            where = "elements == '{}'".format(identifier)
-            if not store.select(name, where=where).empty:
-                if window:  # add the m_z window information
-                    where += " & m_z >= {:5f} & m_z <= {:5f}".format(*window)
-                logger.debug("Performing lookup where: " + where)
-                # get the sub-table, and drop the extra index level for simplicity
-                if drop_first_level:
-                    return store.select(name, where=where).droplevel("elements")
-                else:
-                    return store.select(name, where=where)
-            else:
-                raise IndexError("Identifer not in table.")
-    raise KeyError("Key not in HDFStore.")
-'''
+        msg = "Performing {}lookup".format(multi)
+        if where:
+            msg += " & ".join(where)
+        logger.debug(msg)
+
+        if not empty:
+            df = store.select(name, where=" & ".join(where))
+        else:
+            raise IndexError("Identifer(s) not in table.")
+
+        if multi_lookup:
+            tbl_idents = pd.unique(df.index.droplevel("parts"))
+            df = df.loc[[i for i in identifier if i in tbl_idents], :]
+
+    return df
+    # except KeyError:
+    #    raise KeyError("Key not in HDFStore.")
 
 
 def _get_default_multiindex():
@@ -166,10 +118,9 @@ def _get_default_multiindex():
 def get_store_index(path, drop_first_level=True, **kwargs):
     """
     """
-    with load_store(path=path, **kwargs) as store:
-        store.keys()
+    with pd.HDFStore(path, **kwargs) as store:
         if "/table" in store.keys():
-            index = store.select("/table", columns=[]).index
+            index = store.select("/table", columns=["elements", "parts"]).index
         else:
             index = _get_default_multiindex()  # empty index
     if drop_first_level:
@@ -210,33 +161,36 @@ def dump_subtables(
         Which compression library to use.
     """
     path = path or interferences_datafolder(subfolder="table") / "interferences.h5"
+    logger.debug("Checking Store")
     current_index = get_store_index(path).to_list()
-    identifiers = [id for d in dfs for id in [d.name] * d.index.size]
+    logger.debug("Combining DataFrames")
     df = pd.concat(dfs, axis=0, ignore_index=False)
     df.index.rename("parts", inplace=True)
-    df["elements"] = identifiers
+    df["elements"] = [id for d in dfs for id in [d.name] * d.index.size]
     ####################################################################################
-    output = deduplicate(df, charges=charges, multiples=False)
-
-    # take the index from df, and the index from the store and combine them
+    logger.debug("Deduplicating")
+    output = df.loc[~df.index.duplicated(keep="first"), :]  # remove duplicated index
+    # take the index from df, and the index from the store and combine them to dedupe
     new_duplicates = _find_duplicate_multiples(
-        pd.DataFrame(index=output.index.to_list() + current_index), charges=charges,
+        pd.DataFrame(index=output.index.to_list() + current_index), charges=charges
     )  # all of these should be in the output.index
-    if new_duplicates:
+    if len(new_duplicates):
         logger.debug(
             "Removing duplicates before dump: {}".format(", ".join(new_duplicates))
         )
         output.drop(index=new_duplicates, inplace=True)
 
     # create hierarchical indexes
-
+    logger.debug("Reindexing")
     output.set_index("elements", append=True, inplace=True)
     output = output.reorder_levels(["elements", "parts"], axis=0)
     # convert non-string. non-numerical objects to string
     # append to the existing dataframe
     # somehow S[34]S[34]++ sneaks past
     logger.debug(
-        "Dumping {} table to HDF store.".format(",".join(pd.unique(identifiers)))
+        "Dumping {} tables to HDF store.".format(
+            ",".join(pd.unique(output.index.get_level_values("elements")))
+        )
     )
     output.astype({"molecule": "str", "components": "str"}).to_hdf(
         path,
@@ -294,6 +248,8 @@ def reset_table(
             index=_get_default_multiindex(),
             columns=["m_z", "molecule", "components", "mass", "charge", "iso_product",],
         )
+        # note - this will not work until a pytables bug is fixed,
+        # where the table doesnt' generate from an empty frame.
         df.to_hdf(
             path,
             key=key,

@@ -32,6 +32,7 @@ def build_table(
     add_labels=False,
     threshold=10e-8,
     window=None,
+    cache_results=True,
 ):
     """
     Build the interferences table.
@@ -55,6 +56,8 @@ def build_table(
     mass_window : :class:`tuple`
         Window of interest to filter out irrelevant examples (here a mass window,
         which directly translates to m/z window with z=1).
+    cache_results : :class:`bool`
+        Whether to store the results on disk for
 
     Todo
     -----
@@ -92,25 +95,33 @@ def build_table(
     identifiers = [
         "-".join([repr(c) for c in components]) for components in combinations
     ]
-    # could do a loookup here for all the identifiers, then go build the unkonwn ones
+    # do a loookup here for all the identifiers, then go build the unkonwn ones
+    cached_combinations = []
     try:
         lookup = lookup_components(identifiers)  # ignore window here
-        build = [
-            i for i in identifiers if i not in lookup.index.get_level_values("elements")
-        ]
+        cached_combinations = pd.unique(lookup.index.get_level_values("elements"))
         lookup = lookup.droplevel("elements")
         if window is not None:  # process_window for lookup
             lookup = lookup.loc[lookup.m_z.between(*window)]
         table = pd.concat([table, lookup], axis=0, ignore_index=False)
-    except (KeyError, IndexError):
+    except KeyError as e:
+        pytables_expect = "No object named /table in the file"
+        if pytables_expect in str(e):
+            logger.debug("Table not built - Defaulting to build-all.")
+            build = identifiers
+        else:
+            raise e
+    except IndexError as e:
+        logger.debug("No identifiers in table - Defaulting to build-all.")
         build = identifiers
 
-    to_build = [
+
+    need_to_build = [
         (ID, components)
         for (ID, components) in zip(identifiers, combinations)
-        if ID in build
+        if (ID not in cached_combinations)
     ]
-    progressbar = tqdm(to_build)  # file=ToLogger(logger)
+    progressbar = tqdm(need_to_build)  # file=ToLogger(logger)
     new_tables = []
     for ID, components in progressbar:
         relevant_ID = True
@@ -139,7 +150,7 @@ def build_table(
                 df = df.loc[df["m_z"].between(*window), :]
             table = pd.concat([table, df], axis=0, ignore_index=False)
     # append new dfs to the HDF store for later use
-    if new_tables:
+    if new_tables and cache_results:
         dump_subtables(new_tables, charges=charges)
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO

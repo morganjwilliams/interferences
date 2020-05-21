@@ -2,6 +2,7 @@
 Functions for creating, formatting and serialising representaitons of molecules.
 """
 import pandas as pd
+import numpy as np
 import periodictable as pt
 from pyrolite.mineral.transform import merge_formulae
 from ..util.sorting import get_relative_electronegativity
@@ -26,22 +27,20 @@ def _find_duplicate_multiples(df, charges=None):
     -------
     :class:`list:
     """
-    mols = [pt.formula(i) for i in df.index.str.strip("+")]
+    counts = df.index.map(lambda s: s.count("["))
+    target_charges = [c for c in np.arange(np.max(charges)) + 1 if c // 2 == c / 2]
+    source_n_atoms = [c for c in np.arange(counts.max()) + 1 if c <= (counts.max() / 2)]
 
     drop_mols = []
-    subset_charges = [i for i in charges if i > 1]
-    for m in mols:
-        for c in subset_charges:
-            mult = merge_formulae([m] * c)  # a multiple of this molecule
-            if mult in mols:
-                drop_mols.append(repr_formula(mult) + "+" * c)
-    # this will erraneously add XX++ where XX+ exists (which is valid)
-    drop_mols = [i for i in drop_mols if i in df.index]
+    for n_atoms in source_n_atoms:
+        src = df.index[counts == n_atoms]  # get e.g. 1-atom molecules
+        for m in src.str.strip("+"):
+            potential_multiples = [
+                repr_formula(merge_formulae([m] * c)) + "+" * c for c in target_charges
+            ]
+
+            drop_mols += df.index.intersection(potential_multiples).to_list()
     return drop_mols
-
-
-def _find_duplicate_indexes(df):
-    return df.index[df.index.duplicated(keep="first")]
 
 
 def deduplicate(df, charges=None, multiples=True):
@@ -64,14 +63,13 @@ def deduplicate(df, charges=None, multiples=True):
     # remove duplicate m/z #############################################################
     idx = df.index
     if idx.duplicated().any():
-        duplicates = _find_duplicate_indexes(df)
+        duplicates = df.index[df.index.duplicated(keep="first")]
         logger.debug("Dropping duplicate indexes: {}".format(", ".join(duplicates)))
         df.drop_duplicates(
             subset="index", keep="first", inplace=True
         )  # drop any duplicate indexes
 
     if multiples:
-        idx = df.index
         dup_multiples = _find_duplicate_multiples(df, charges=charges)
         if dup_multiples:
             logger.debug(
