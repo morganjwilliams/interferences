@@ -128,6 +128,8 @@ def build_table(
     new_tables = []
     if need_to_build:
         progressbar = tqdm(need_to_build)  # file=ToLogger(logger)
+        barwidth = 20 + 3 * max_atoms
+        progressbar.set_description(" " * barwidth)
         for ID, components in progressbar:
             relevant_ID = True
             if window is not None:  # check potential m_z relevance
@@ -150,7 +152,9 @@ def build_table(
                     components, charges=charges, threshold=threshold
                 )
                 df.name = ID
-                progressbar.set_description("{} @ {:d} rows".format(ID, df.index.size))
+                msg = "{} @ {:d} rows".format(ID, df.index.size)
+                msg += " " * (barwidth - len(msg))
+                progressbar.set_description(msg)
                 logger.debug(
                     "Building table for {} @ {:d} rows".format(ID, df.index.size)
                 )
