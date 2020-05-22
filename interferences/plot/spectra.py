@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import pyrolite.plot
 import numpy as np
 from adjustText import adjust_text
+from collections import defaultdict
 from ..util.mz import process_window
 from ..table import build_table
 from ..table.molecules import get_molecule_labels
@@ -92,23 +93,21 @@ def stemplot(
     ax.set_ylim(ymin, 1000.0)
 
     annotations = []
-    weights = {ix: weight for ix, weight in enumerate([800, 600, 400])}
+    # if it's a primary peak (i.e. one elmeent), make it bold
+    weights = defaultdict(lambda x: "light")
+    weights.update({ix + 1: weight for ix, weight in enumerate(["black", "normal"])})
     for row in table.nlargest(max_labels, yvar).index:
         intensity = table.loc[row, yvar]
         if intensity > intensity_threshold:
-            # if abund < 0.5 :
-            # if it's a primary peak (i.e. one elmeent), make it bold
-
             _an = ax.annotate(
                 table.loc[row, "label"],
                 xy=(table.loc[row, "m_z"], table.loc[row, yvar]),
                 xytext=(table.loc[row, "m_z"], table.loc[row, yvar]),
                 fontsize=12,
-                fontweight=weights.get(row.count("["), 200)
+                fontweight=weights[row.count("[")]
                 # rotation=90,
             )
             annotations.append(_an)
-            # keep x position
 
     if adjust_labels and _have_adjustText:
         add_objs = []
