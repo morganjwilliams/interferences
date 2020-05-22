@@ -97,7 +97,7 @@ def build_table(
     cached_combinations = []
     try:
         lookup = lookup_components(identifiers)  # ignore window here
-        cached_combinations = pd.unique(lookup.index.get_level_values("elements"))
+        cached_combinations = list(pd.unique(lookup.index.get_level_values("elements")))
         lookup = lookup.droplevel("elements")
         if window is not None:  # process_window for lookup
             lookup = lookup.loc[lookup.m_z.between(*window)]
@@ -117,10 +117,29 @@ def build_table(
         # build them from scratch, as it's more difficult to filter after the fact
         cached_combinations = []
 
+    beyond_bounds = []
+    if window is not None:  # check potential m_z relevance
+        # check whether mz is within margin of target
+        margin = 0.10  # 10%
+        in_mass_bounds = lambda ID: any(
+            [
+                window[0] * (1 - margin)
+                < pt.formula(ID.replace("-", "")).mass / c
+                < window[1] * (1 + margin)
+                for c in charges
+            ]
+        )
+        beyond_bounds = []
+        beyond_bounds = [ID for ID in identifiers if not in_mass_bounds(ID)]
+        if beyond_bounds:
+            logger.debug(
+                "Skipping tables outside m/z bounds {}.".format(",".join(beyond_bounds))
+            )
+
     need_to_build = [
         (ID, components)
         for (ID, components) in zip(identifiers, combinations)
-        if (ID not in cached_combinations)
+        if (ID not in cached_combinations + beyond_bounds)
     ]
 
     new_tables = []
@@ -129,39 +148,18 @@ def build_table(
         barwidth = 16 + 3 * max_atoms
         progressbar.set_description(" " * barwidth)
         for ID, components in progressbar:
-            relevant_ID = True
-            if window is not None:  # check potential m_z relevance
-                M = pt.formula(ID.replace("-", "")).mass
-                # check whether mz is within margin of target
-                margin = 0.10  # 10%
-                m_z_check = any(
-                    [
-                        window[0] * (1 - margin) < M / c < window[1] * (1 + margin)
-                        for c in charges
-                    ]
-                )
-                if not m_z_check:
-                    relevant_ID = False
-                    logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
-            if relevant_ID:
-                # create the whole table, ignoring window, to dump into refernce.
+            # create the whole table, ignoring window, to dump into refernce.
+            df = component_subtable(components, charges=charges, threshold=threshold)
+            df.name = ID
+            msg = "{} @ {:d} rows".format(ID, df.index.size)
+            msg += " " * (barwidth - len(msg))
+            progressbar.set_description(msg)
+            logger.debug("Building table for {} @ {:d} rows".format(ID, df.index.size))
 
-                df = component_subtable(
-                    components, charges=charges, threshold=threshold
-                )
-                df.name = ID
-                msg = "{} @ {:d} rows".format(ID, df.index.size)
-                msg += " " * (barwidth - len(msg))
-                progressbar.set_description(msg)
-                logger.debug(
-                    "Building table for {} @ {:d} rows".format(ID, df.index.size)
-                )
-                # if we use threshold, we'll put an incomplete table into the
-                # reference store --- maybe filter for low-aubndnace isotopes later?
-                new_tables.append(df)
+            new_tables.append(df)
 
-    # append new dfs to the HDF store for later use
-    if new_tables:
+    if new_tables:  # append new dfs to the HDF store for later use
+        # if we use threshold, we'll put an incomplete table into the reference store
         additions = process_subtables(
             new_tables, charges=charges, dump=(cache_results and (threshold is None))
         )
