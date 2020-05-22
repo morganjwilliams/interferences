@@ -116,5 +116,5 @@ def component_subtable(components, charges=[1, 2], threshold=None):
     # get a string-based index #########################################################
     df.index = df["molecule"].apply(repr_formula)
     df.index += df["charge"].apply(lambda c: "+" * c)
-    # for consistency, we could string-convert object columns here
+    df.drop(columns=["molecule", "components"], inplace=True)  # we dont need these
     return df

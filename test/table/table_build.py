@@ -2,7 +2,7 @@ import unittest
 import pandas as pd
 import periodictable as pt
 from interferences.table import build_table
-from interferences.table.molecules import _get_isotope
+from interferences.table.molecules import _get_isotope, components_from_index_value
 from interferences.util.sorting import get_relative_electronegativity
 from interferences.util.meta import interferences_datafolder
 
@@ -19,8 +19,6 @@ class TestBuildTable(unittest.TestCase):
         # check columns
         for column in [
             "m_z",
-            "molecule",
-            "components",
             "mass",
             "charge",
             "iso_product",
@@ -51,9 +49,7 @@ class TestBuildTable(unittest.TestCase):
         isotopes = [repr(pt.O.add_isotope(18)), repr(pt.H.add_isotope(1))]
         df = build_table(isotopes)
         for row in df.index:
-            components = df.loc[row, "components"]
-            components = [el.strip() for el in components[1:-1].split(",")]
-            set_final = set([i for i in components])
+            set_final = set(components_from_index_value(row))
             set_start = set(isotopes)
             self.assertTrue(set_final.issubset(set_start))
 
@@ -62,19 +58,14 @@ class TestBuildTable(unittest.TestCase):
         isotopes = [pt.O.add_isotope(18), pt.H.add_isotope(1)]
         df = build_table(isotopes)
         for row in df.index:
-            components = df.loc[row, "components"]
-            components = [el.strip() for el in components[1:-1].split(",")]
-            set_final = set([i for i in components])
+            set_final = set(components_from_index_value(row))
             set_start = set([repr(i) for i in isotopes])
             self.assertTrue(set_final.issubset(set_start))
 
     def test_components_sorted(self):
         df = build_table(self.elements)
         # These are stringified lists
-        components0 = [
-            el.strip()
-            for el in df["components"].values[df.index.size // 2][1:-1].split(",")
-        ]
+        components0 = components_from_index_value(df.index.values[df.index.size // 2])
         components0_sorted = sorted(
             components0,
             key=lambda x: (get_relative_electronegativity(x), _get_isotope(x)),

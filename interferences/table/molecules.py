@@ -1,6 +1,7 @@
 """
 Functions for creating, formatting and serialising representaitons of molecules.
 """
+import re
 import pandas as pd
 import numpy as np
 import periodictable as pt
@@ -14,6 +15,10 @@ logger = Handle(__name__)
 _COMPLEVEL = 4
 _COMPLIB = "lzo"
 _ITEMSIZES = {"label": 50, "index": 40}
+
+
+def components_from_index_value(idx):
+    return re.findall(r"\w+\[\d+\]", idx)
 
 
 def _find_duplicate_multiples(df, charges=None):
@@ -113,73 +118,6 @@ def repr_formula(molecule):
     return "".join(parts)
 
 
-def get_molecule_labels(df, **kwargs):
-    """
-    Get labels for molecules based on their composition and charge.
-
-    Parameters
-    -----------
-    df : :class:`pandas.DataFrame`
-
-    Returns
-    -------
-    :class:`pandas.Series`
-    """
-    # look up index values which are pre-computed
-    label_src = interferences_datafolder(subfolder="table") / "labels.h5"
-    labels = pd.DataFrame(index=df.index, columns=["label"])
-    try:
-        with pd.HDFStore(
-            label_src, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs
-        ) as store:
-            label_store = store.select("/table")
-
-        known = label_store.index.intersection(df.index)
-        unknown = df.index.difference(known)
-        if known.size:
-            labels.loc[known, "label"] = label_store["label"]
-
-    except (KeyError, FileNotFoundError):
-        label_store = pd.DataFrame(columns=["label"])
-        unknown = df.index  # assume they're all unknown
-
-    if unknown.size:
-        logger.debug("Buiding {} labels.".format(unknown.size))
-        # fill in the gaps
-
-        mols = df.loc[unknown, "molecule"].apply(get_formatted_formula, sorted=True)
-        charges = df.loc[unknown, "charge"].apply(
-            lambda c: r"$\mathrm{^{" + "+" * c + "}}$"
-        )
-        labels.loc[unknown, "label"] = mols + charges
-        # append new index values to the datafile
-        logger.debug("Dumping {} labels to file.".format(unknown.size))
-
-        if label_src.exists():
-            labels.loc[unknown].to_hdf(
-                label_src,
-                key="table",
-                mode="a",
-                append=True,
-                format="table",
-                min_itemsize=_ITEMSIZES,
-                complevel=_COMPLEVEL,
-                complib=_COMPLIB,
-            )
-        else:  # write and create the file with headers
-            labels.loc[unknown].to_hdf(
-                label_src,
-                key="table",
-                mode="w",
-                append=True,
-                format="fixed",
-                min_itemsize=_ITEMSIZES,
-                complevel=_COMPLEVEL,
-                complib=_COMPLIB,
-            )
-    return labels
-
-
 def get_formatted_formula(molecule, sorted=False):
     """
     Construct a formatted name for a molecule.
@@ -215,6 +153,73 @@ def get_formatted_formula(molecule, sorted=False):
         name += part
     name += "}$"  # finish TeX formatting
     return name
+
+
+def get_molecule_labels(df, **kwargs):
+    """
+    Get labels for molecules based on their composition and charge.
+
+    Parameters
+    -----------
+    df : :class:`pandas.DataFrame`
+
+    Returns
+    -------
+    :class:`pandas.Series`
+    """
+    # look up index values which are pre-computed
+    label_src = interferences_datafolder(subfolder="table") / "labels.h5"
+    labels = pd.DataFrame(index=df.index, columns=["label"])
+    try:
+        with pd.HDFStore(
+            label_src, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs
+        ) as store:
+            label_store = store.select("/table")
+
+        known = label_store.index.intersection(df.index)
+        unknown = df.index.difference(known)
+        if known.size:
+            labels.loc[known, "label"] = label_store["label"]
+
+    except (KeyError, FileNotFoundError):
+        label_store = pd.DataFrame(columns=["label"])
+        unknown = df.index  # assume they're all unknown
+
+    if unknown.size:
+        logger.debug("Buiding {} labels.".format(unknown.size))
+        # fill in the gaps
+
+        mols = unknown.map(lambda x: get_formatted_formula(x.strip('+'), sorted=True))
+        charges = df.loc[unknown, "charge"].apply(
+            lambda c: r"$\mathrm{^{" + "+" * c + "}}$"
+        )
+        labels.loc[unknown, "label"] = mols + charges
+        # append new index values to the datafile
+        logger.debug("Dumping {} labels to file.".format(unknown.size))
+
+        if label_src.exists():
+            labels.loc[unknown].to_hdf(
+                label_src,
+                key="table",
+                mode="a",
+                append=True,
+                format="table",
+                min_itemsize=_ITEMSIZES,
+                complevel=_COMPLEVEL,
+                complib=_COMPLIB,
+            )
+        else:  # write and create the file with headers
+            labels.loc[unknown].to_hdf(
+                label_src,
+                key="table",
+                mode="w",
+                append=True,
+                format="fixed",
+                min_itemsize=_ITEMSIZES,
+                complevel=_COMPLEVEL,
+                complib=_COMPLIB,
+            )
+    return labels
 
 
 def molecule_from_components(components):
