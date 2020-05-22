@@ -94,7 +94,7 @@ def stemplot(
 
     annotations = []
     # if it's a primary peak (i.e. one elmeent), make it bold
-    weights = defaultdict(lambda x: "light")
+    weights = defaultdict(lambda: "light")
     weights.update({ix + 1: weight for ix, weight in enumerate(["black", "normal"])})
     for row in table.nlargest(max_labels, yvar).index:
         intensity = table.loc[row, yvar]

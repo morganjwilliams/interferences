@@ -3,7 +3,7 @@ from interferences.table.store import (
     load_store,
     lookup_components,
     reset_table,
-    dump_subtables,
+    process_subtables,
 )
 
 if __name__ == "__main__":

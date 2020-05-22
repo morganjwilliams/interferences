@@ -128,9 +128,10 @@ def get_store_index(path, drop_first_level=True, **kwargs):
     return index
 
 
-def dump_subtables(
+def process_subtables(
     dfs,
     charges=None,
+    dump=True,
     path=None,
     mode="a",
     data_columns=["elements", "m_z", "iso_abund_product"],
@@ -139,7 +140,8 @@ def dump_subtables(
     **kwargs
 ):
     """
-    Dump the interferences group to file, appending to the heirarchical-indexed table.
+    Process and optionally dump a set of subtables to file,
+    appending to the hierarchically-indexed table.
 
     Parameters
     ----------
@@ -159,6 +161,11 @@ def dump_subtables(
         limiting for web transfer.
     complib : :class:`str`
         Which compression library to use.
+
+    Returns
+    -------
+    :class:`pandas.DataFrame`
+        De-duplicated concatenated version of new tables.
     """
     path = path or interferences_datafolder(subfolder="table") / "interferences.h5"
     logger.debug("Checking Store")
@@ -169,40 +176,41 @@ def dump_subtables(
     df["elements"] = [id for d in dfs for id in [d.name] * d.index.size]
     ####################################################################################
     logger.debug("Deduplicating")
-    output = df.loc[~df.index.duplicated(keep="first"), :]  # remove duplicated index
+    output = df.loc[~df.index.duplicated(keep="first"), :]  # remove duplicated indexes
     # take the index from df, and the index from the store and combine them to dedupe
     new_duplicates = _find_duplicate_multiples(
         pd.DataFrame(index=output.index.to_list() + current_index), charges=charges
-    )  # all of these should be in the output.index
+    )
     if len(new_duplicates):
-        logger.debug(
-            "Removing duplicates before dump: {}".format(", ".join(new_duplicates))
-        )
+        # all of these should be in the output.index, so we can just drop them
+        logger.debug("Removing duplicates: {}".format(", ".join(new_duplicates)))
         output.drop(index=new_duplicates, inplace=True)
 
-    # create hierarchical indexes
-    logger.debug("Reindexing")
-    output.set_index("elements", append=True, inplace=True)
-    output = output.reorder_levels(["elements", "parts"], axis=0)
-    # convert non-string. non-numerical objects to string
-    # append to the existing dataframe
-    # somehow S[34]S[34]++ sneaks past
-    logger.debug(
-        "Dumping {} tables to HDF store.".format(
-            ",".join(pd.unique(output.index.get_level_values("elements")))
+    if dump:
+        logger.debug("Reindexing")
+        # create hierarchical indexes for a copy of the table to dump into the store
+        to_store = output.set_index("elements", append=True)
+        to_store = to_store.reorder_levels(["elements", "parts"], axis=0)
+        # convert non-string. non-numerical objects to string
+        # append to the existing dataframe
+        # somehow S[34]S[34]++ sneaks past
+        logger.debug(
+            "Dumping {} tables to HDF store.".format(
+                ",".join(pd.unique(to_store.index.get_level_values("elements")))
+            )
         )
-    )
-    output.astype({"molecule": "str", "components": "str"}).to_hdf(
-        path,
-        key="table",
-        mode="a",
-        append=True,
-        format="table",
-        data_columns=data_columns,
-        min_itemsize=_ITEMSIZES,
-        complevel=_COMPLEVEL,
-        complib=_COMPLIB,
-    )
+        to_store.astype({"molecule": "str", "components": "str"}).to_hdf(
+            path,
+            key="table",
+            mode="a",
+            append=True,
+            format="table",
+            data_columns=data_columns,
+            min_itemsize=_ITEMSIZES,
+            complevel=_COMPLEVEL,
+            complib=_COMPLIB,
+        )
+    return output
 
 
 def reset_table(

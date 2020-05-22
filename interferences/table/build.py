@@ -12,7 +12,7 @@ from .molecules import (
 )
 from .store import (
     load_store,
-    dump_subtables,
+    process_subtables,
     lookup_components,
 )
 from .intensity import isotope_abundance_threshold, get_isotopic_abundance_product
@@ -128,7 +128,7 @@ def build_table(
     new_tables = []
     if need_to_build:
         progressbar = tqdm(need_to_build)  # file=ToLogger(logger)
-        barwidth = 20 + 3 * max_atoms
+        barwidth = 16 + 3 * max_atoms
         progressbar.set_description(" " * barwidth)
         for ID, components in progressbar:
             relevant_ID = True
@@ -160,15 +160,19 @@ def build_table(
                 )
                 # if we use threshold, we'll put an incomplete table into the
                 # reference store --- maybe filter for low-aubndnace isotopes later?
-                if threshold is None:
-                    new_tables.append(df)
-                # filter for window here
-                if window is not None:
-                    df = df.loc[df["m_z"].between(*window), :]
-                table = pd.concat([table, df], axis=0, ignore_index=False)
+                new_tables.append(df)
+
     # append new dfs to the HDF store for later use
-    if new_tables and cache_results:
-        dump_subtables(new_tables, charges=charges)
+    if new_tables:
+        additions = process_subtables(
+            new_tables, charges=charges, dump=(cache_results and (threshold is None))
+        )
+        # should de-duplicate the new_tables in this table
+        # could rearrange and return deduped tables from dump_subtables
+        if window is not None:
+            additions = additions.loc[additions["m_z"].between(*window), :]
+        table = pd.concat([table, additions], axis=0, ignore_index=False,)
+
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
     # sort table #######################################################################
