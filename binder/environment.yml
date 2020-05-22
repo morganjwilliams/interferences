@@ -1,0 +1,13 @@
+name: interferencesdocs
+
+channels:
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=>3.7
+  - pip
+  - matplotlib
+  - pandas>=0.23
+  - pip:
+      - -e git+git://github.com/morganjwilliams/interferences.git@develop#egg=interferences[dev,skl]

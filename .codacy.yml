@@ -1,0 +1,9 @@
+exclude_paths:
+  - 'binder/**'
+  - 'docs/**'
+  - 'versioneer.py'
+  - 'interferences/_version.py'
+  - 'test/**'
+  - '.github/**'
+  - 'CODE_OF_CONDUCT.md'
+  - 'CHANGELOG.md'

@@ -1,15 +1,13 @@
 import unittest
-
-from interferences import *
+from interferences.optimize import sum_of_interferences, minimum_interference_isotope
 
 
 class TestSumInferferences(unittest.TestCase):
-
     def setUp(self):
         pass
 
     def test_no_interferences(self):
-        sum_of_interferences(pt.H.add_isotope(2))
+        pass
 
     def test_positive_interference_sum(self):
         pass
@@ -22,7 +20,6 @@ class TestSumInferferences(unittest.TestCase):
 
 
 class TestOptimalIsotope(unittest.TestCase):
-
     def setUp(self):
         pass
 
@@ -30,7 +27,7 @@ class TestOptimalIsotope(unittest.TestCase):
         pass
 
     def test_multiple_one_optimal(self):
-        minimum_interference_isotope(pt.Zr)
+        pass
 
     def test_mutiple_optimal(self):
         pass
@@ -42,5 +39,5 @@ class TestOptimalIsotope(unittest.TestCase):
         pass
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
