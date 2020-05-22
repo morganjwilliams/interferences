@@ -75,9 +75,7 @@ def build_table(
 
     While "m/z" would be an appropriate column name, it can't be used in HDF indexes.
     """
-    table = pd.DataFrame(
-        columns=["m_z", "molecule", "components", "mass", "charge", "iso_product",]
-    )
+    table = pd.DataFrame(columns=["m_z", "mass", "charge", "iso_product",])
     # set numeric datatypes
     table = table.astype(
         {"mass": "float", "charge": "int8", "iso_product": "float", "m_z": "float",}
@@ -182,4 +180,4 @@ def build_table(
         logger.info("Adding labels to the table.")
         table["label"] = get_molecule_labels(table)
     # for consistency with prevsiouly serialized data:
-    return table.astype({"molecule": str, "components": str})
+    return table

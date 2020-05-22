@@ -10,7 +10,7 @@ logger = Handle(__name__)
 
 _COMPLEVEL = 4
 _COMPLIB = "lzo"
-_ITEMSIZES = {"elements": 30, "parts": 40, "components": 40, "molecule": 30}
+_ITEMSIZES = {"elements": 30, "parts": 40}
 
 
 def load_store(path=None, complevel=_COMPLEVEL, complib=_COMPLIB, **kwargs):
@@ -199,7 +199,7 @@ def process_subtables(
                 ",".join(pd.unique(to_store.index.get_level_values("elements")))
             )
         )
-        to_store.astype({"molecule": "str", "components": "str"}).to_hdf(
+        to_store.to_hdf(
             path,
             key="table",
             mode="a",
@@ -254,7 +254,7 @@ def reset_table(
         logger.debug("Resetting store table: {}/{}".format(path.name, key))
         df = pd.DataFrame(
             index=_get_default_multiindex(),
-            columns=["m_z", "molecule", "components", "mass", "charge", "iso_product",],
+            columns=["m_z", "mass", "charge", "iso_product",],
         )
         # note - this will not work until a pytables bug is fixed,
         # where the table doesnt' generate from an empty frame.
