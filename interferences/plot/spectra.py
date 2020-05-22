@@ -84,6 +84,7 @@ def stemplot(
 
     logger.debug("Plotting {} peaks.".format(table.index.size))
     ax = table.loc[:, ["m_z", yvar]].pyroplot.stem(ax=ax, **kwargs)
+    ax.set_ylabel("Estimated Relative Intensity")
 
     if window is not None:
         ax.set_xlim(window)
