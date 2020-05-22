@@ -6,21 +6,27 @@ from ..util.log import Handle
 
 logger = Handle(__name__)
 
-def isotope_abundance_threshold(isotopes, threshold=10e-8):
+
+def isotope_abundance_threshold(isotopes, threshold=None):
     """
     Remove isotopes from a list which have no or zero abundance.
 
     Parameters
     ----------
     isotopes : :class:`list`
+        List of isotopes to filter.
+    threshold : :class:`float`
+        Minimum isotope abundance for inclusion.
 
     Returns
     -------
     :class:`list`
     """
+
+    threshold = threshold or 10e-8
     constraint_functions = [
         lambda x: hasattr(x, "abundance"),
-        lambda x: x.abundance > threshold,
+        lambda x: x.abundance >= threshold,
     ]
     for valid in constraint_functions:
         isotopes = [i for i in isotopes if valid(i)]

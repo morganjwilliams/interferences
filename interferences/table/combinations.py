@@ -44,7 +44,7 @@ def get_elemental_combinations(elements, max_atoms=3):
     return poss_mol_parts[::-1]  # backwards so small ones come first
 
 
-def get_isotopic_combinations(element_comb, threshold=10e-8):
+def get_isotopic_combinations(element_comb, threshold=None):
     """
     Take a combination of elements and expand it to generate the potential combinations
     of elements.
@@ -81,7 +81,7 @@ def get_isotopic_combinations(element_comb, threshold=10e-8):
     return iso_combinations
 
 
-def component_subtable(components, charges=[1, 2], threshold=10e-8):
+def component_subtable(components, charges=[1, 2], threshold=None):
     """
     Build a sub-table from a set of elemental components.
 

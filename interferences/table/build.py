@@ -30,7 +30,7 @@ def build_table(
     sortby=["m_z", "charge", "mass"],
     charges=[1, 2],
     add_labels=False,
-    threshold=10e-8,
+    threshold=None,
     window=None,
     cache_results=True,
 ):
@@ -115,40 +115,53 @@ def build_table(
         logger.debug("No identifiers in table - Defaulting to build-all.")
         build = identifiers
 
+    if threshold is not None:
+        # build them from scratch, as it's more difficult to filter after the fact
+        cached_combinations = []
 
     need_to_build = [
         (ID, components)
         for (ID, components) in zip(identifiers, combinations)
         if (ID not in cached_combinations)
     ]
-    progressbar = tqdm(need_to_build)  # file=ToLogger(logger)
+
     new_tables = []
-    for ID, components in progressbar:
-        relevant_ID = True
-        if window is not None:  # check potential m_z relevance
-            M = pt.formula(ID.replace("-", "")).mass
-            # check whether mz is within margin of target
-            margin = 0.10  # 10%
-            m_z_check = any(
-                [
-                    window[0] * (1 - margin) < M / c < window[1] * (1 + margin)
-                    for c in charges
-                ]
-            )
-            if not m_z_check:
-                relevant_ID = False
-                logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
-        if relevant_ID:
-            # create the whole table, ignoring window, to dump into refernce.
-            df = component_subtable(components, charges=charges)
-            df.name = ID
-            progressbar.set_description("{} @ {:d} rows".format(ID, df.index.size))
-            logger.debug("Building table for {} @ {:d} rows".format(ID, df.index.size))
-            new_tables.append(df)
-            # filter for window here
-            if window is not None:
-                df = df.loc[df["m_z"].between(*window), :]
-            table = pd.concat([table, df], axis=0, ignore_index=False)
+    if need_to_build:
+        progressbar = tqdm(need_to_build)  # file=ToLogger(logger)
+        for ID, components in progressbar:
+            relevant_ID = True
+            if window is not None:  # check potential m_z relevance
+                M = pt.formula(ID.replace("-", "")).mass
+                # check whether mz is within margin of target
+                margin = 0.10  # 10%
+                m_z_check = any(
+                    [
+                        window[0] * (1 - margin) < M / c < window[1] * (1 + margin)
+                        for c in charges
+                    ]
+                )
+                if not m_z_check:
+                    relevant_ID = False
+                    logger.debug("Skipping table for {} (irrelevant m/z)".format(ID))
+            if relevant_ID:
+                # create the whole table, ignoring window, to dump into refernce.
+
+                df = component_subtable(
+                    components, charges=charges, threshold=threshold
+                )
+                df.name = ID
+                progressbar.set_description("{} @ {:d} rows".format(ID, df.index.size))
+                logger.debug(
+                    "Building table for {} @ {:d} rows".format(ID, df.index.size)
+                )
+                # if we use threshold, we'll put an incomplete table into the
+                # reference store --- maybe filter for low-aubndnace isotopes later?
+                if threshold is None:
+                    new_tables.append(df)
+                # filter for window here
+                if window is not None:
+                    df = df.loc[df["m_z"].between(*window), :]
+                table = pd.concat([table, df], axis=0, ignore_index=False)
     # append new dfs to the HDF store for later use
     if new_tables and cache_results:
         dump_subtables(new_tables, charges=charges)
