@@ -69,7 +69,7 @@ def stemplot(
 
         if not "label" in table.columns:
             logger.debug("Fetching labels.")
-            table["label"] = get_molecule_labels(table)
+            table.loc[:, "label"] = get_molecule_labels(table)
             logger.debug("Labels fetched.")
     elif components is not None:
         table = build_table(
