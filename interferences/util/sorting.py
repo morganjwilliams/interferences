@@ -1,7 +1,7 @@
 import periodictable as pt
 import numpy as np
 import pandas as pd
-from interferences.util.pt import get_periodic_frame
+from interferences.util.ptable import get_periodic_frame
 from .log import Handle
 
 logger = Handle(__name__)

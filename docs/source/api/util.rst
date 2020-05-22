@@ -5,9 +5,16 @@ interferences\.util\.sorting
       :undoc-members:
 
 
-interferences\.util\.pt
+interferences\.util\.mz
 -------------------------------
-  .. automodule:: interferences.util.pt
+  .. automodule:: interferences.util.mz
+      :members:
+      :undoc-members:
+
+
+interferences\.util\.ptable
+-------------------------------
+  .. automodule:: interferences.util.ptable
       :members:
       :undoc-members:
 
@@ -15,5 +22,12 @@ interferences\.util\.pt
 interferences\.util\.meta
 -------------------------------
   .. automodule:: interferences.util.meta
+      :members:
+      :undoc-members:
+
+
+interferences\.util\.log
+-------------------------------
+  .. automodule:: interferences.util.log
       :members:
       :undoc-members:

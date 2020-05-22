@@ -1,12 +1,12 @@
-interferences\.plot\.pt
+interferences\.plot\.ptable
 -------------------------------
-  .. automodule:: interferences.util.pt
+  .. automodule:: interferences.util.ptable
       :members:
       :undoc-members:
 
 
-interferences\.plot\.pt
+interferences\.plot\.ptable
 -------------------------------
-  .. automodule:: interferences.plot.spectra
+  .. automodule:: interferences.plot.ptable
       :members:
       :undoc-members:
