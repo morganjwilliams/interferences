@@ -1,5 +1,5 @@
 interferences
-==========
+==============
 
   interferences is a set of tools for analysing inorganic mass spectra and
   interference patterns.

@@ -6,7 +6,7 @@ interferences\.table\.build
 
 
 interferences\.table\.combinations
--------------------------------
+------------------------------------
   .. automodule:: interferences.table.combinations
       :members:
       :undoc-members:
