@@ -12,7 +12,7 @@ logging.getLogger(__name__).addHandler(logging.NullHandler())
 logging.captureWarnings(True)
 
 from .table.build import build_table
-from .plot.spectra import stemplot
+from .plot.spectra import stemplot, spectra
 from .util.mz import process_window
 
 # note that only some of these methods will be valid for series
@@ -47,17 +47,7 @@ class mz(object):
         return self._obj.loc[self._obj.m_z.between(*process_window(window))]
 
     def stemplot(self, *args, **kwargs):
-        """
-        Get a m/z window from a table.
-
-        Parameters
-        ----------
-        window : :class:`tuple`
-            Window specification. Either low and high m/z, or isotope and width.
-
-        Returns
-        -------
-        :class:`pandas.DataFrame`
-            Filtered dataframe.
-        """
         return stemplot(table=self._obj, *args, **kwargs)
+
+    def spectra(self, *args, **kwargs):
+        return spectra(table=self._obj, *args, **kwargs)
