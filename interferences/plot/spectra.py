@@ -67,7 +67,7 @@ def _label_peaks(
     max_labels=12,
     ymin=0.00001,
     ymax=1,
-    iter_lim=100,
+    iter_lim=50,
 ):
     """
     Parameters
