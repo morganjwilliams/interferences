@@ -67,7 +67,7 @@ def _label_peaks(
     max_labels=12,
     ymin=0.00001,
     ymax=1,
-    iter_lim=100
+    iter_lim=100,
 ):
     """
     Parameters
@@ -139,7 +139,7 @@ def _label_peaks(
                 fc="w",
             ),
             lim=iter_lim,
-            on_basemap=True
+            on_basemap=True,
         )
 
 
@@ -219,7 +219,7 @@ def spectra(
     table=None,
     window=None,
     mass_resolution=1000,
-    abb=0.0,
+    image_ratio=0.0,
     yvar="iso_product",
     ymin=0.00001,
     **kwargs
@@ -238,10 +238,11 @@ def spectra(
     mass_resolution : :class:`float`
         Mass resolution :math:`\Delta M/M` defined at Full Width Half Maximum (FWHM),
         used to scale the width/mass range of the peak.
-    abb : :classL`float`
-        Positive coefficient for abbheration. Values between 0 (no abbheration)
-        and 1 correspond to scenarios where the full peak fits in a collector slit.
-        Beyond 1, this corresponds to scenarios where the image is larger than the
+    image_ratio : :class:`float`
+        The ratio of the size of the image to the limiting slit. Values between 0
+        (zero width image) and 1 correspond to scenarios where the full image fits
+        in a collector slit. Beyond 1, this corresponds to scenarios where the image
+        is larger than the slit, with reduced maximum intensities.
     window : :class:`tuple`
         Window in m/z to use for the plot. Can specify (low, high) or (isotope, width).
     yvar : :class:`str`
@@ -260,7 +261,9 @@ def spectra(
     ax = init_axes(ax=ax)
     # get kernel
     krnl = peak_kernel(
-        mass_resolution=mass_resolution, abb=abb, **subkwargs(kwargs, peak_kernel),
+        mass_resolution=mass_resolution,
+        image_ratio=image_ratio,
+        **subkwargs(kwargs, peak_kernel),
     )
     for (name, p) in table.iterrows():
         idx, signal = peak(p["m_z"], p[yvar], kernel=krnl)
