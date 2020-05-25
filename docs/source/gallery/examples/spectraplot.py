@@ -33,5 +33,5 @@ plt.show()
 fig, ax = plt.subplots(2, 2, sharex=True, sharey=True, figsize=(12, 8))
 for a, abb in zip(ax.flat, [0, 0.2, 1, 1.5]):
     df.mz.spectra(ax=a, window=window, mass_resolution=3000, abb=abb, max_labels=5)
-    a.annotate("abb={:.1f}".format(abb), xy=(0.9, 0.9), xycoords=ax.transAxes)
+    a.annotate("abb={:.1f}".format(abb), xy=(0.9, 0.9), xycoords=a.transAxes)
 plt.show()

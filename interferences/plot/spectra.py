@@ -6,6 +6,7 @@ import pyrolite.plot
 import numpy as np
 from adjustText import adjust_text
 from collections import defaultdict
+import matplotlib.lines
 from ..util.mz import process_window
 from ..table import build_table
 from ..table.molecules import get_molecule_labels
@@ -66,6 +67,7 @@ def _label_peaks(
     max_labels=12,
     ymin=0.00001,
     ymax=1,
+    iter_lim=100
 ):
     """
     Parameters
@@ -118,6 +120,7 @@ def _label_peaks(
             annotations,
             table["m_z"].values,
             table[yvar].values,
+            ax=ax,
             force_text=(0.2, 1),
             force_objects=(0, 0.5),
             force_points=(0, 0.5),
@@ -135,6 +138,8 @@ def _label_peaks(
                 ls="--",
                 fc="w",
             ),
+            lim=iter_lim,
+            on_basemap=True
         )
 
 
@@ -196,7 +201,14 @@ def stemplot(
     ax = table.loc[:, ["m_z", yvar]].pyroplot.stem(ax=ax, **kwargs)
 
     _format_axes(ax, window=window, ymin=ymin)
-    _label_peaks(ax, table, yvar=yvar, window=window, ymin=ymin, **kwargs)
+    _label_peaks(
+        ax,
+        table,
+        yvar=yvar,
+        window=window,
+        ymin=ymin,
+        **subkwargs(kwargs, _label_peaks),
+    )
 
     return ax
 
@@ -252,9 +264,20 @@ def spectra(
     )
     for (name, p) in table.iterrows():
         idx, signal = peak(p["m_z"], p[yvar], kernel=krnl)
-        ax.plot(idx, signal)
+        ax.plot(
+            idx,
+            signal,
+            **subkwargs(kwargs, ax.plot, ax.scatter, matplotlib.lines.Line2D),
+        ),
 
     _format_axes(ax, window=window, ymin=ymin)
-    _label_peaks(ax, table, yvar=yvar, window=window, ymin=ymin, **kwargs)
+    _label_peaks(
+        ax,
+        table,
+        yvar=yvar,
+        window=window,
+        ymin=ymin,
+        **subkwargs(kwargs, _label_peaks),
+    )
 
     return ax

@@ -66,5 +66,7 @@ class TestSpectraSpectraPlot(unittest.TestCase):
         ax = spectra(table=self.tbl, mass_resolution=500)
         self.assertIsInstance(ax, matplotlib.axes.Axes)
 
+
+
 if __name__ == "__main__":
     unittest.main()
