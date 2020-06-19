@@ -178,13 +178,17 @@ def process_subtables(
     logger.debug("Deduplicating")
     output = df.loc[~df.index.duplicated(keep="first"), :]  # remove duplicated indexes
     # take the index from df, and the index from the store and combine them to dedupe
-    new_duplicates = _find_duplicate_multiples(
+    duplicates = _find_duplicate_multiples(
         pd.DataFrame(index=output.index.to_list() + current_index), charges=charges
     )
+    new_duplicates = [i for i in duplicates if i in output.index]
     if len(new_duplicates):
-        # all of these should be in the output.index, so we can just drop them
-        logger.debug("Removing duplicates: {}".format(", ".join(new_duplicates)))
+        logger.debug(
+            "Dropping duplicates from new table: {}".format(", ".join(new_duplicates))
+        )
         output.drop(index=new_duplicates, inplace=True)
+
+    store_duplicates = [i for i in duplicates if i in current_index]
 
     if dump:
         logger.debug("Reindexing")
@@ -194,6 +198,14 @@ def process_subtables(
         # convert non-string. non-numerical objects to string
         # append to the existing dataframe
         # somehow S[34]S[34]++ sneaks past
+        if len(store_duplicates):
+            logger.debug(
+                "Removing duplicates from store: {}".format(", ".join(store_duplicates))
+            )
+            with pd.HDFStore(path) as store:
+                store.remove(
+                    "table", where=[i in store_duplicates for i in current_index]
+                )
         logger.debug(
             "Dumping {} tables to HDF store.".format(
                 ",".join(pd.unique(to_store.index.get_level_values("elements")))
@@ -210,7 +222,7 @@ def process_subtables(
             complevel=_COMPLEVEL,
             complib=_COMPLIB,
         )
-    return output
+    return output.drop(columns="elements") # elements only used for
 
 
 def reset_table(
