@@ -100,7 +100,10 @@ def build_table(
         cached_combinations = list(pd.unique(lookup.index.get_level_values("elements")))
         lookup = lookup.droplevel("elements")
         if window is not None:  # process_window for lookup
-            lookup = lookup.loc[lookup.m_z.between(*window)]
+            lookup = lookup.loc[lookup.m_z.between(*window), :]
+        if charges is not None: # filter for charges too!
+            lookup = lookup.loc[lookup.charge.isin(charges), :]
+        # add the lookup table to the end
         table = pd.concat([table, lookup], axis=0, ignore_index=False)
     except KeyError as e:
         pytables_expect = "No object named /table in the file"
