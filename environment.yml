@@ -1,22 +1,62 @@
-name: pyrolite
+name: interferences
+
 channels:
-  - conda-forge
+  - conda-forge # get things from conda-forge first
+  - defaults
+
 dependencies:
-  - certifi=2018.4.16=py36_0
-  - pip=10.0.1=py36_0
-  - python=3.6.5=h0c2934d_0
-  - setuptools=39.2.0=py36_0
-  - vc=14=h0510ff6_3
-  - vs2015_runtime=14.0.25123=3
-  - wheel=0.31.1=py36_0
-  - wincertstore=0.2=py36h7fe50ca_0
+  - python=3.7
+  # pandas and scientific python
+  - numpy
+  - numpydoc
+  - pandas>=1.0  # dataframe acccessors, attrs attribute
+  - xlrd
+  - openpyxl
+  - psutil
+  - matplotlib # note that 3.4+ is incompatible with mpltern <0.3.3
+  - pytables
+  - scipy>=1.2  # uses scipy.optimize.Bounds, added around 1.2
+  - umap-learn
+  - tinydb
+  - periodictable
+  - mpltern>=0.3.1
+  - mpmath
+  - sympy
+  - joblib
+  - requests
+  # Tools
+  - jupyter
+  - jupyterlab
+  - jupyterlab-spellchecker
+  - jupyterlab_code_formatter
+  - ipykernel
+  - ipympl
+  - pip
+  - black
+  - jedi<0.18.0 # for use on atom/ipython
   - pip:
-    - matplotlib==2.2.2
-    - numpy==1.14.5
-    - pandas==0.23.1
-    - pathlib==1.0.1
-    - periodictable==1.5.0
-    - pkginfo==1.4.2
-    - scipy==1.1.0
-    - six==1.11.0
-    - twine==1.11.0
+    - pyzmq
+    - pytest
+    - pytest-runner
+    - pytest-cov
+    - coverage
+    - codecov
+    - sphinx_rtd_theme
+    - sphinx-autodoc-annotation
+    - sphinx_gallery>=0.6.0
+    - recommonmark
+    - versioneer
+    - twine
+    - -e ../pyrolite/ # install the local pyrolite package
+    - -e . # install the intereferences package
+
+# conda env create -f environment.yml
+# python -m ipykernel install --user --name interferences
+
+# conda activate interferences
+
+# conda deactivate interferences
+# conda env remove -n interferences
+# jupyter kernelspec uninstall interferences
+
+# make sure to launch Jupyter, atom etc from the command line after activating

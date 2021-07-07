@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 import periodictable as pt
 from tqdm import tqdm
-from pyrolite.util.meta import ToLogger
+from pyrolite.util.log import ToLogger
 from .molecules import (
     molecule_from_components,
     get_molecule_labels,
@@ -75,10 +75,22 @@ def build_table(
 
     While "m/z" would be an appropriate column name, it can't be used in HDF indexes.
     """
-    table = pd.DataFrame(columns=["m_z", "mass", "charge", "iso_product",])
+    table = pd.DataFrame(
+        columns=[
+            "m_z",
+            "mass",
+            "charge",
+            "iso_product",
+        ]
+    )
     # set numeric datatypes
     table = table.astype(
-        {"mass": "float", "charge": "int8", "iso_product": "float", "m_z": "float",}
+        {
+            "mass": "float",
+            "charge": "int8",
+            "iso_product": "float",
+            "m_z": "float",
+        }
     )
     window = process_window(window)
     # build up combinations of elements, forming the components column
@@ -101,7 +113,7 @@ def build_table(
         lookup = lookup.droplevel("elements")
         if window is not None:  # process_window for lookup
             lookup = lookup.loc[lookup.m_z.between(*window), :]
-        if charges is not None: # filter for charges too!
+        if charges is not None:  # filter for charges too!
             lookup = lookup.loc[lookup.charge.isin(charges), :]
         # add the lookup table to the end
         table = pd.concat([table, lookup], axis=0, ignore_index=False)
@@ -170,7 +182,11 @@ def build_table(
         # could rearrange and return deduped tables from dump_subtables
         if window is not None:
             additions = additions.loc[additions["m_z"].between(*window), :]
-        table = pd.concat([table, additions], axis=0, ignore_index=False,)
+        table = pd.concat(
+            [table, additions],
+            axis=0,
+            ignore_index=False,
+        )
 
     # filter out invalid entries, eg. H{2+} ############################################
     # TODO
